@@ -1,0 +1,423 @@
+# Copy to .github/workflows/release.yml.
+#
+# Started by `craftsman publish --apply`, never by a push. Builds each
+# places/<role>.place.json and hands it to Project Control, which decides where
+# it may deploy. Holds no Roblox key and cannot publish a place.
+#
+# Needs only this repository named in the console under Settings -> Releases.
+# No secret: the run signs in with GitHub's OIDC token. The repository variable
+# CONTROL_RELEASE_ENDPOINT points it at a console other than the hosted one.
+
+name: Release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      places:
+        description: Set by a publish.
+        required: false
+        type: string
+      targets:
+        description: Set by a publish.
+        required: false
+        type: string
+      from:
+        description: Set by a publish.
+        required: false
+        type: string
+      place_id:
+        description: Set by Project Control.
+        required: false
+        type: string
+      commit:
+        description: Set by Project Control.
+        required: false
+        type: string
+      rebuild_of:
+        description: Set by Project Control.
+        required: false
+        type: string
+      baseline_id:
+        description: Set by Project Control.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}-${{ inputs.places || inputs.place_id || 'all' }}-${{ inputs.rebuild_of || 'new' }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit }}
+          fetch-depth: 0
+          lfs: true
+
+      # rokit.toml must list craftsman, rojo and wally.
+      - name: Install pinned tools
+        uses: CompeyDev/setup-rokit@v0.2.1
+        with:
+          version: v1.2.0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve packages
+        run: wally install
+
+      # Only for a project that also uses Ember (e.g. Craftsman Kit).
+      - name: Resolve Ember packages
+        if: hashFiles('ember.toml') != ''
+        env:
+          EMBR_VERSION: v0.6.0
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL -o "$RUNNER_TEMP/bin/embr" "https://github.com/ember-luau/ember/releases/download/$EMBR_VERSION/embr-linux-x86_64"
+          chmod +x "$RUNNER_TEMP/bin/embr"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/bin/embr" install --locked
+
+      - name: Collect commits and changelogs
+        env:
+          FROM: ${{ inputs.from }}
+          REBUILD_OF: ${{ inputs.rebuild_of }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/changelog.json"
+          commits="$RUNNER_TEMP/commits.json"
+          echo null > "$out"
+          echo null > "$commits"
+
+          if [ -n "$REBUILD_OF" ]; then
+            echo "::notice::A rebuild keeps the commits and changelog of the release it replaces."
+            exit 0
+          fi
+          if [ -z "$FROM" ]; then
+            echo "::notice::Nothing deployed yet, so there are no earlier commits to list."
+            exit 0
+          fi
+          if ! [[ "$FROM" =~ ^[0-9a-f]{40}$ ]] || ! git cat-file -e "$FROM^{commit}" 2>/dev/null; then
+            echo "::warning::The last deployed commit ($FROM) is not in this history."
+            exit 0
+          fi
+
+          total="$(git rev-list --count "$FROM..HEAD")"
+          truncated=$(( total > 200 ? total - 200 : 0 ))
+          git log -n 200 --format='%H%x09%cI%x09%an%x09%s' "$FROM..HEAD" |
+            jq -R -s --arg from "$FROM" --argjson truncated "$truncated" '
+              {
+                commits: (split("\n") | map(select(length > 0) | split("\t") |
+                  {sha: .[0], committed_at: .[1], author: .[2], subject: (.[3:] | join(" "))})),
+                commits_from: $from,
+                commits_truncated: $truncated
+              }' > "$commits"
+
+          # Changelogs are changelogs/<yyyy-mm-dd>-<topic>/CHANGELOG.md, sent only
+          # when this range added them.
+          if ! added="$(git diff --name-only --diff-filter=A "$FROM" HEAD -- 'changelogs/*/CHANGELOG.md')"; then
+            echo "::warning::Could not compare $FROM with HEAD."
+            exit 0
+          fi
+          files=()
+          [ -n "$added" ] && mapfile -t files < <(sort <<<"$added")
+
+          entries='[]'
+          for file in "${files[@]}"; do
+            name="$(basename "$(dirname "$file")")"
+            if [ ${#name} -gt 80 ] || ! [[ "$name" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+              echo "::warning file=$file::Skipped: name the folder <yyyy-mm-dd>-<topic>, lowercase, at most 80 characters."
+              continue
+            fi
+            if [ "$(wc -c < "$file")" -gt 65536 ]; then
+              echo "::warning file=$file::Skipped: over 64 KB."
+              continue
+            fi
+            if ! grep -q '[^[:space:]]' "$file"; then
+              echo "::warning file=$file::Skipped: empty."
+              continue
+            fi
+            if [ "$(jq length <<<"$entries")" -ge 20 ]; then
+              echo "::warning::Over 20 changelogs; the rest were not sent."
+              break
+            fi
+            entries="$(jq -c --arg name "$name" --rawfile markdown "$file" '. + [{name: $name, markdown: $markdown}]' <<<"$entries")"
+          done
+          printf '%s' "$entries" > "$out"
+
+          {
+            echo "## Commits since the last deploy"
+            echo
+            if [ "$(jq '.commits | length' "$commits")" -eq 0 ]; then
+              echo "_None._"
+            else
+              jq -r '.commits[] | "- `\(.sha[0:7])` \(.subject) (\(.author))"' "$commits"
+              if [ "$truncated" -gt 0 ]; then echo "- _and $truncated more._"; fi
+            fi
+            echo
+            echo "## Changelog"
+            echo
+            if [ "$(jq length <<<"$entries")" -eq 0 ]; then
+              echo "_None._"
+            else
+              jq -r '.[] | "### \(.name)\n\n\(.markdown)\n"' <<<"$entries"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build candidates
+        env:
+          COMMIT: ${{ inputs.commit || github.sha }}
+          ONLY_PLACE: ${{ inputs.place_id }}
+          PLACES: ${{ inputs.places }}
+          TARGETS: ${{ inputs.targets }}
+          FROM: ${{ inputs.from }}
+          BASELINE_ID: ${{ inputs.baseline_id }}
+          REBUILD_OF: ${{ inputs.rebuild_of }}
+          ENDPOINT: ${{ vars.CONTROL_RELEASE_ENDPOINT || 'https://operations.craftsman.systems/api/release-ingest' }}
+          AUDIENCE: ${{ vars.CONTROL_RELEASE_AUDIENCE || 'https://operations.craftsman.systems' }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          places=(places/*.place.json)
+          if [ ${#places[@]} -eq 0 ]; then
+            echo "::notice::No places/*.place.json, so nothing to build."
+            exit 0
+          fi
+
+          # The last deployed commit, to compare save data against.
+          if [ -z "$REBUILD_OF" ] && [[ "$FROM" =~ ^[0-9a-f]{40}$ ]] && git cat-file -e "$FROM^{commit}" 2>/dev/null; then
+            git worktree add --detach base "$FROM" > /dev/null
+            if ! (cd base && rokit install --no-trust-check > /dev/null && wally install > /dev/null \
+                && { [ ! -f ember.toml ] || embr install --locked > /dev/null; }); then
+              echo "::warning::Could not install the last deployed commit's tools, so save data was not compared."
+              git worktree remove --force base
+            fi
+          fi
+
+          oidc() {
+            curl -sSf -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+              "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUDIENCE" | jq -r .value
+          }
+
+          built=0
+          for place in "${places[@]}"; do
+            name="$(basename "$place" .place.json)"
+            compare=()
+            source_args=()
+
+            place_id="$(jq -r '.placeId' "$place")"
+            if [ -n "$ONLY_PLACE" ] && [ "$place_id" != "$ONLY_PLACE" ]; then
+              continue
+            fi
+            if [ -n "$PLACES" ] && [[ ",$PLACES," != *",$place_id,"* ]]; then
+              continue
+            fi
+            built=$((built + 1))
+
+            # "source": "control": build on the Studio place Project Control holds.
+            if [ "$(jq -r '.source' "$place")" = "control" ]; then
+              mkdir -p baselines
+              universe_id="$(jq -r '.universeId' "$place")"
+              request='{}'
+              if [ -n "$ONLY_PLACE" ] && [ -n "$BASELINE_ID" ]; then
+                request="$(jq -n --arg b "$BASELINE_ID" '{baseline_id: $b}')"
+              fi
+              status="$(jq -n --argjson u "$universe_id" --argjson p "$place_id" --argjson r "$request" '{universe_id: $u, place_id: $p} + $r' |
+                curl -sS -o baseline.json -w '%{http_code}' -X POST "$ENDPOINT/baseline" \
+                  -H "Authorization: Bearer $(oidc)" -H "Content-Type: application/json" --data-binary @-)"
+
+              # No Studio place available: the release waits in the console for
+              # an upload. Not a failed build.
+              if [ "$status" = "409" ] && [ "$(jq -r '.reason // empty' baseline.json)" = "studio_unavailable" ]; then
+                problem="$(jq -r '.message' baseline.json)"
+                changelog="$RUNNER_TEMP/changelog.json"
+                [ -s "$changelog" ] || echo null > "$changelog"
+                commits="$RUNNER_TEMP/commits.json"
+                [ -s "$commits" ] || echo null > "$commits"
+                if [ -n "$TARGETS" ]; then
+                  mapfile -t recipients < <(jq -r --arg r "$name" '.[$r] // [] | .[] | tostring' <<<"$TARGETS")
+                else
+                  recipients=("$place_id")
+                fi
+                for recipient in "${recipients[@]}"; do
+                  waited="$(jq -n --argjson u "$universe_id" --argjson p "$recipient" --argjson s "$place_id" --arg role "$name" \
+                      --arg problem "$problem" --arg commit "$COMMIT" --arg rebuild "$REBUILD_OF" \
+                      --slurpfile c "$changelog" --slurpfile k "$commits" \
+                      '{universe_id: $u, place_id: $p, problem: $problem, commit: $commit, changelog: $c[0]}
+                       + ($k[0] // {})
+                       + (if $p == $s then {} else {source_place_id: $s, role: $role} end)
+                       + (if $rebuild == "" then {} else {rebuild_of: $rebuild} end)' |
+                    curl -sS -o waiting.json -w '%{http_code}' -X POST "$ENDPOINT/waiting" \
+                      -H "Authorization: Bearer $(oidc)" -H "Content-Type: application/json" --data-binary @-)"
+                  if [ "$waited" = "200" ]; then
+                    echo "::warning file=$place::$name for place $recipient is waiting for a Studio place: $problem"
+                  elif [ "$waited" = "403" ]; then
+                    echo "::notice::$name for place $recipient was not handed over: $(jq -r .message waiting.json)"
+                  else
+                    echo "::error file=$place::$name for place $recipient: Project Control answered $waited: $(jq -r '.message // .' waiting.json)"
+                    exit 1
+                  fi
+                done
+                rm -f baseline.json waiting.json
+                continue
+              fi
+
+              if [ "$status" != "200" ]; then
+                echo "::error file=$place::$name: Project Control answered $status: $(jq -r '.message // .' baseline.json)"
+                exit 1
+              fi
+
+              curl -sSf --compressed -o "baselines/$name.rbxl" "$(jq -r .data.location baseline.json)"
+              source_args+=(--baseline "baselines/$name.rbxl")
+
+              version="$(jq -r '.data.version // empty' baseline.json)"
+              if [ -n "$version" ]; then
+                source_args+=(--baseline-version "$version")
+              fi
+
+              if [ "$(jq -r '.data.previous // empty' baseline.json)" != "" ]; then
+                if curl -sSf --compressed -o "baselines/$name.previous.rbxl" "$(jq -r .data.previous.location baseline.json)"; then
+                  compare+=(--previous "baselines/$name.previous.rbxl")
+                fi
+              fi
+              rm -f baseline.json
+            fi
+
+            if [ -f "base/$place" ]; then
+              if (cd base && craftsman release "$place" --data-only --out ../dist-base); then
+                compare+=(--previous-release "dist-base/$name.release.json")
+              else
+                echo "::warning::The last deployed commit's declaration for $name did not load, so save data was not compared."
+              fi
+
+              baseline="$(jq -r '.baseline // empty' "base/$place")"
+              if [ -n "$baseline" ] && [ -f "base/$baseline" ]; then
+                compare+=(--previous "base/$baseline")
+              fi
+            fi
+
+            echo "::group::$name"
+            craftsman release "$place" --commit "$COMMIT" "${source_args[@]}" "${compare[@]}"
+            echo "::endgroup::"
+          done
+
+          if [ -n "$ONLY_PLACE" ] && [ "$built" -eq 0 ]; then
+            echo "::error::No places/*.place.json declares place $ONLY_PLACE."
+            exit 1
+          fi
+          if [ -n "$PLACES" ] && [ "$built" -eq 0 ]; then
+            echo "::error::No places/*.place.json declares any of $PLACES."
+            exit 1
+          fi
+
+      - name: Summarise
+        if: always()
+        run: craftsman summary dist >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Hand the candidates to Project Control
+        env:
+          ONLY_PLACE: ${{ inputs.place_id }}
+          REBUILD_OF: ${{ inputs.rebuild_of }}
+          TARGETS: ${{ inputs.targets }}
+          ENDPOINT: ${{ vars.CONTROL_RELEASE_ENDPOINT || 'https://operations.craftsman.systems/api/release-ingest' }}
+          AUDIENCE: ${{ vars.CONTROL_RELEASE_AUDIENCE || 'https://operations.craftsman.systems' }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          oidc() {
+            curl -sSf -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+              "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUDIENCE" | jq -r .value
+          }
+
+          changelog="$RUNNER_TEMP/changelog.json"
+          [ -s "$changelog" ] || echo null > "$changelog"
+          commits="$RUNNER_TEMP/commits.json"
+          [ -s "$commits" ] || echo null > "$commits"
+
+          post() {
+            curl -sS -o response.json -w '%{http_code}' -X POST "$ENDPOINT/$1" \
+              -H "Authorization: Bearer $(oidc)" -H "Content-Type: application/json" \
+              --data-binary @-
+          }
+
+          for report in dist/*.release.json; do
+            name="$(basename "$report" .release.json)"
+            artifact="dist/$name.rbxl"
+            [ -f "$artifact" ] || continue
+
+            manifest="dist/$name.manifest.json"
+            if [ -f "$manifest" ]; then
+              body="$(jq -n --slurpfile r "$report" --slurpfile m "$manifest" --slurpfile c "$changelog" '{report: $r[0], manifest: $m[0], changelog: $c[0]}')"
+            else
+              body="$(jq -n --slurpfile r "$report" --slurpfile c "$changelog" '{report: $r[0], changelog: $c[0]}')"
+            fi
+            body="$(jq --slurpfile k "$commits" '. + ($k[0] // {})' <<<"$body")"
+            source_place="$(jq -r '.place.placeId' "$report")"
+            if [ -n "$REBUILD_OF" ] && [ "$source_place" = "$ONLY_PLACE" ]; then
+              body="$(jq --arg id "$REBUILD_OF" '. + {rebuild_of: $id}' <<<"$body")"
+            fi
+
+            if [ -n "$TARGETS" ]; then
+              mapfile -t recipients < <(jq -r --arg r "$name" '.[$r] // [] | .[] | tostring' <<<"$TARGETS")
+            else
+              recipients=("$source_place")
+            fi
+
+            # Every place with this role gets the same file; a copy names the
+            # place it was built on.
+            for recipient in "${recipients[@]}"; do
+              if [ "$recipient" = "$source_place" ]; then
+                sent="$body"
+              else
+                sent="$(jq --argjson p "$recipient" --argjson s "$source_place" \
+                  '.report.place.placeId = $p | . + {source_place_id: $s} | del(.rebuild_of)' <<<"$body")"
+              fi
+
+              status="$(printf '%s' "$sent" | post start)"
+              if [ "$status" = "403" ]; then
+                echo "::notice::$name for place $recipient was not handed over: $(jq -r .message response.json)"
+                continue
+              fi
+              if [ "$status" != "200" ]; then
+                echo "::error::$name for place $recipient: Project Control answered $status: $(jq -r '.message // .' response.json)"
+                exit 1
+              fi
+
+              release_id="$(jq -r .data.release_id response.json)"
+              upload_url="$(jq -r .data.upload_url response.json)"
+              group="$(jq -r .data.place_group response.json)"
+
+              curl -sSf -X PUT "$upload_url" \
+                -H "Content-Type: application/octet-stream" \
+                --data-binary @"$artifact" > /dev/null
+
+              status="$(jq -n --arg id "$release_id" '{release_id: $id}' | post seal)"
+              if [ "$status" != "200" ]; then
+                echo "::error::$name for place $recipient: sealing failed: $(jq -r '.message // .' response.json)"
+                exit 1
+              fi
+
+              echo "::notice::$name is a release candidate in $group, place $recipient ($release_id)."
+            done
+          done
+
+      - name: Keep the candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate-${{ github.sha }}
+          path: |
+            dist/*.rbxl
+            dist/*.release.json
+            dist/*.manifest.json
+          if-no-files-found: ignore
+          retention-days: 30

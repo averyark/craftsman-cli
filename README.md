@@ -56,6 +56,13 @@ versions.
 | `craftsman --version` | Prints the versions described above |
 | `craftsman help` | Lists every command with its options |
 
+## Release workflow
+
+Copy [`templates/release.yml`](templates/release.yml) to `.github/workflows/release.yml`.
+A project with an `ember.toml` must commit `ember.lock`, and should install
+Ember outside `Packages/` (see the
+[Craftsman Kit README](https://github.com/averyark/craftsman-kit#alongside-wally)).
+
 ## Which console
 
 The CLI talks to the hosted console, `https://operations.craftsman.systems/api`,
