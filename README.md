@@ -10,7 +10,7 @@ repository holds only the released binaries. The source is developed with the
 With [Rokit](https://github.com/rojo-rbx/rokit), from your project's folder:
 
 ```sh
-rokit add averyark/craftsman-cli craftsman
+rokit add averyark/craftsman-cli@0.2.0 craftsman
 ```
 
 The last argument names the command. Without it, Rokit names the command after
@@ -18,7 +18,7 @@ the repository, `craftsman-cli`. The same thing as a line in `rokit.toml`:
 
 ```toml
 [tools]
-craftsman = "averyark/craftsman-cli@0.1.0"
+craftsman = "averyark/craftsman-cli@0.2.0"
 ```
 
 Then run `rokit install`. Builds exist for Windows x86_64, Linux x86_64 and
@@ -35,7 +35,7 @@ folder holding `wally.toml`).
 
 | CLI | Framework |
 |---|---|
-| 0.1.x | `>=0.1.0 <0.2.0` |
+| 0.1.x, 0.2.x | `>=0.1.0 <0.2.0` |
 
 `craftsman --version` prints the CLI's version, the range it accepts and the
 framework it finds. A framework outside the range is refused, naming both
@@ -48,15 +48,29 @@ versions.
 | `craftsman publish` | Checks the declaration's manifest with Project Control and builds a release |
 | `craftsman release <place.json>` | Builds a release candidate place file and its report |
 | `craftsman test-roblox` | Builds this checkout and runs `verify/` against it in Roblox |
+| `craftsman login` | Signs this machine in to Project Control with GitHub |
+| `craftsman logout` | Signs this machine out and forgets its session |
+| `craftsman whoami` | Says who this machine is signed in as, until when, and in which projects |
 | `craftsman summary [<dir>]` | Prints the release reports in `<dir>` (default `dist`) as Markdown |
 | `craftsman skills [--check]` | Mirrors `.agents/skills` into `.claude/skills`, or checks that it matches |
 | `craftsman --version` | Prints the versions described above |
 | `craftsman help` | Lists every command with its options |
 
-`craftsman login`, `logout` and `whoami` are **not available yet**. Signing in
-with GitHub arrives in a later version. Until then, commands that reach Project
-Control sign with `CONTROL_SIGNING_SECRET`, read from the environment or from a
-`.env` file in the project.
+## Signing in
+
+`craftsman login` signs in with GitHub's device flow: it prints a code and a
+link, and you enter the code on GitHub. First link your GitHub account on the
+console's Account page, or Project Control will not know who you are. The
+session is stored at `~/.craftsman/session`, one per `CONTROL_ENDPOINT`.
+`craftsman whoami` shows it and `craftsman logout` ends it.
+
+Publishing to a protected place group does not activate it straight away. The
+CLI prints a link and waits while someone confirms the activation with a passkey
+in the console. A build that follows starts only once the activation has applied.
+
+The game key, `CONTROL_SIGNING_SECRET`, still works when there is no session,
+read from the environment or from a `.env` file in the project. The CLI warns
+each time it uses it, and that fallback will be removed.
 
 ## Windows
 
