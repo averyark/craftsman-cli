@@ -10,7 +10,7 @@ repository holds only the released binaries. The source is developed with the
 With [Rokit](https://github.com/rojo-rbx/rokit), from your project's folder:
 
 ```sh
-rokit add averyark/craftsman-cli@0.3.0 craftsman
+rokit add averyark/craftsman-cli@0.3.1 craftsman
 ```
 
 The last argument names the command. Without it, Rokit names the command after
@@ -18,7 +18,7 @@ the repository, `craftsman-cli`. The same thing as a line in `rokit.toml`:
 
 ```toml
 [tools]
-craftsman = "averyark/craftsman-cli@0.3.0"
+craftsman = "averyark/craftsman-cli@0.3.1"
 ```
 
 Then run `rokit install`. Builds exist for Windows x86_64, Linux x86_64 and
@@ -56,6 +56,13 @@ versions.
 | `craftsman --version` | Prints the versions described above |
 | `craftsman help` | Lists every command with its options |
 
+## Which console
+
+The CLI talks to the hosted console, `https://operations.craftsman.systems/api`,
+by default. `CONTROL_ENDPOINT`, in the environment or the project's `.env`,
+points it elsewhere, such as a local stack at
+`http://127.0.0.1:54321/functions/v1`.
+
 ## Signing in
 
 `craftsman login` signs in with GitHub's device flow: it prints a code and a
@@ -79,7 +86,7 @@ with it when there is no session, and are refused with:
 
 > This console no longer accepts the game key from a terminal; update the CLI and run `craftsman login`.
 
-If you see that, move to 0.3.0, delete `CONTROL_SIGNING_SECRET` from the
+If you see that, move to 0.3.0 or later, delete `CONTROL_SIGNING_SECRET` from the
 project's `.env`, and run `craftsman login`.
 
 ## Windows
