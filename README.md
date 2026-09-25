@@ -10,7 +10,7 @@ repository holds only the released binaries. The source is developed with the
 With [Rokit](https://github.com/rojo-rbx/rokit), from your project's folder:
 
 ```sh
-rokit add averyark/craftsman-cli@0.2.0 craftsman
+rokit add averyark/craftsman-cli@0.3.0 craftsman
 ```
 
 The last argument names the command. Without it, Rokit names the command after
@@ -18,7 +18,7 @@ the repository, `craftsman-cli`. The same thing as a line in `rokit.toml`:
 
 ```toml
 [tools]
-craftsman = "averyark/craftsman-cli@0.2.0"
+craftsman = "averyark/craftsman-cli@0.3.0"
 ```
 
 Then run `rokit install`. Builds exist for Windows x86_64, Linux x86_64 and
@@ -35,7 +35,7 @@ folder holding `wally.toml`).
 
 | CLI | Framework |
 |---|---|
-| 0.1.x, 0.2.x | `>=0.1.0 <0.2.0` |
+| 0.1.x, 0.2.x, 0.3.x | `>=0.1.0 <0.2.0` |
 
 `craftsman --version` prints the CLI's version, the range it accepts and the
 framework it finds. A framework outside the range is refused, naming both
@@ -62,15 +62,25 @@ versions.
 link, and you enter the code on GitHub. First link your GitHub account on the
 console's Account page, or Project Control will not know who you are. The
 session is stored at `~/.craftsman/session`, one per `CONTROL_ENDPOINT`.
-`craftsman whoami` shows it and `craftsman logout` ends it.
+`craftsman whoami` shows it and `craftsman logout` ends it. The first line every
+command prints names the console it is talking to, and whether that console is
+hosted or local.
 
 Publishing to a protected place group does not activate it straight away. The
 CLI prints a link and waits while someone confirms the activation with a passkey
 in the console. A build that follows starts only once the activation has applied.
 
-The game key, `CONTROL_SIGNING_SECRET`, still works when there is no session,
-read from the environment or from a `.env` file in the project. The CLI warns
-each time it uses it, and that fallback will be removed.
+## The game key
+
+The game key, `CONTROL_SIGNING_SECRET`, belongs only in Roblox's secret store,
+where a live server uses it. The CLI never reads it, and Project Control refuses
+a publish signed with it, even beside a good session. CLI 0.2.0 and earlier sign
+with it when there is no session, and are refused with:
+
+> This console no longer accepts the game key from a terminal; update the CLI and run `craftsman login`.
+
+If you see that, move to 0.3.0, delete `CONTROL_SIGNING_SECRET` from the
+project's `.env`, and run `craftsman login`.
 
 ## Windows
 
