@@ -10,7 +10,7 @@ repository holds only the released binaries. The source is developed with the
 With [Rokit](https://github.com/rojo-rbx/rokit), from your project's folder:
 
 ```sh
-rokit add averyark/craftsman-cli@0.3.1 craftsman
+rokit add averyark/craftsman-cli@0.3.2 craftsman
 ```
 
 The last argument names the command. Without it, Rokit names the command after
@@ -18,7 +18,7 @@ the repository, `craftsman-cli`. The same thing as a line in `rokit.toml`:
 
 ```toml
 [tools]
-craftsman = "averyark/craftsman-cli@0.3.1"
+craftsman = "averyark/craftsman-cli@0.3.2"
 ```
 
 Then run `rokit install`. Builds exist for Windows x86_64, Linux x86_64 and
