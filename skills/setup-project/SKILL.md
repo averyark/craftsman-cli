@@ -79,7 +79,12 @@ wire the repository, and only mark the ones the survey could not prove done:
 2. Accept the project invitation on the Projects page.
 3. **Settings → Universes**: add universe `<universeId>`, the universe ID and
    not a place ID.
-4. Save an Open Cloud key on it and press **Test** until it passes.
+4. Save an Open Cloud key on it and press **Test** until it passes. The key
+   form lists what is needed to start. One of them, `asset:read`, Roblox grants
+   **only on a group**: for a group-owned game, grant it on the group that owns
+   the game, either on this key or on the universe's separate **asset key**
+   (same screen). For a game owned by a user, that user's own key needs no
+   grant, and nobody else's key can have it. **Test** does not check it.
 5. Save the game key shown once in the experience's **Secrets** as
    `CRAFTSMAN_CONTROL`, with the domain `operations.craftsman.systems`, and turn
    on **Allow HTTP Requests** in Studio's Game Settings → Security.
@@ -93,11 +98,13 @@ wire the repository, and only mark the ones the survey could not prove done:
     it in **Approvals** and it shows *Attached*; the project's only
     administrator approves their own. Linking alone gives no access.
 
-Two of these fail without an error, so say them plainly: a secret whose domain
-does not cover `operations.craftsman.systems` is read fine and every report is
-then refused, and a local playtest cannot read Secrets at all (Team Test or a
-live server can; Studio's File → Experience Settings → Security → Local
-Secrets is a separate store for local runs).
+Three of these fail without an error, so say them plainly: a secret whose
+domain does not cover `operations.craftsman.systems` is read fine and every
+report is then refused; a local playtest cannot read Secrets at all (Team Test
+or a live server can; Studio's File → Experience Settings → Security → Local
+Secrets is a separate store for local runs); and a key that passes **Test**
+without `asset:read` still cannot read a document or deploy, because Test does
+not check it.
 
 ## 2. Wire the repository
 
