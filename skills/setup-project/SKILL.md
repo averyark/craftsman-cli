@@ -4,7 +4,7 @@ license: MIT
 metadata:
   author: averyark
   repository: craftsman-cli
-  cli-version: "0.5.0"
+  cli-version: "0.6.1"
 description: Set up Project Control in a Roblox game repository, end to end - install the craftsman CLI, Rojo and Wally, add the craftsman-control package, write the Definitions and Stores ModuleScripts and the start Script, describe the place, add the release workflow, sign in, publish, and add the signing key - while handing the person an exact checklist for the steps that need their browser, passkey or Roblox's Creator Hub. Use when the user asks to set up, onboard, integrate, connect or install Project Control, craftsman-control or the craftsman CLI in their game, follows operations.craftsman.systems/onboard, or has a half-finished setup that fails to publish or report. Also use to check an existing setup for the traps that fail silently.
 ---
 
@@ -115,13 +115,13 @@ If `rokit` itself is missing, stop and ask the person to install it
 Otherwise add only what `rokit.toml` lacks:
 
 ```bash
-rokit add averyark/craftsman-cli@0.5.0 craftsman
+rokit add averyark/craftsman-cli@0.6.1 craftsman
 rokit add rojo-rbx/rojo
 rokit add UpliftGames/wally
 ```
 
 The last word of the first line names the command `craftsman`. An older
-`craftsman` pin moves to 0.5.0: this skill's commands need it.
+`craftsman` pin moves to 0.6.1: this skill's commands need it.
 
 With the CLI installed, `craftsman init --place <placeId>` writes steps 9 to
 13's files at once for a project whose features live in `src/Features/`, and
