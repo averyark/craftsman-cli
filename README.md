@@ -46,10 +46,18 @@ versions.
 flags with features and configs. `Control.Flag`, `:Flags`,
 `Control.FlagService`, `KilledValue`, `Schedulable` and `SnapshotUrl` were
 removed with no alias, and hosted flag values, kills and schedules do not carry
-over. Move both pins together and follow
-[Migrating to configuration](https://github.com/averyark/craftsman-control/blob/main/docs/migrating-to-configuration.md);
-[Features and configs](https://github.com/averyark/craftsman-control/blob/main/docs/features.md)
-is the reference.
+over. Move both pins together, then:
+
+1. Put each flag under a feature: `Control.Scope("Shop"):Feature():Config({ ... })`,
+   with each value declared as `Control.Config(gtType, { Default = ... })`. A
+   boolean "enabled" flag becomes the feature's `Active`, not a config.
+2. Replace `Control.FlagService():Start(...)` with `Control.Start(declaration)`,
+   and call `Control.StartClient()` from a LocalScript if any feature has
+   `Client = true`.
+3. Read values with `:Get()` and `:Observe(fn)`, and move code gated on a flag
+   into the feature's `OnActivate`.
+4. Publish with `craftsman publish --group <group> --activate --apply`, then set the
+   hosted values again in the console's Configuration tab.
 
 ## Commands
 

@@ -124,8 +124,8 @@ The last word of the first line names the command `craftsman`. An older
 `craftsman` pin moves to 0.7.0: this skill's commands need it, and CLI 0.7.x
 loads only framework 0.2.x. If the game already uses framework 0.1.x
 (`Control.Flag`, `:Flags`, `Control.FlagService`), stop and tell the person:
-moving it is a migration, not a pin bump, and follows
-`https://github.com/averyark/craftsman-control/blob/main/docs/migrating-to-configuration.md`.
+moving it is a migration, not a pin bump, and follows the upgrade steps under
+"Upgrading to 0.7.x" in this repository's README.
 
 With the CLI installed, `craftsman init --place <placeId>` writes steps 9 to
 13's files at once for a project whose features live in `src/Features/`, and
