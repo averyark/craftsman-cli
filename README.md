@@ -42,6 +42,15 @@ folder holding `wally.toml`).
 framework it finds. A framework outside the range is refused, naming both
 versions.
 
+**Upgrading to 0.7.x.** CLI 0.7.0 goes with framework 0.2.0, which replaced
+flags with features and configs. `Control.Flag`, `:Flags`,
+`Control.FlagService`, `KilledValue`, `Schedulable` and `SnapshotUrl` were
+removed with no alias, and hosted flag values, kills and schedules do not carry
+over. Move both pins together and follow
+[Migrating to configuration](https://github.com/averyark/craftsman-control/blob/main/docs/migrating-to-configuration.md);
+[Features and configs](https://github.com/averyark/craftsman-control/blob/main/docs/features.md)
+is the reference.
+
 ## Commands
 
 | Command | What it does |
@@ -75,8 +84,8 @@ declaration and its signing key, the game key's secret, the place file), follow
 A publish **activates nothing**: a release's declarations go live in each place
 group when it is deployed there, from the console. `--group <group>` builds for
 that one group and checks the manifest against it, and still activates nothing.
-To change one group's live flags, operations and permissions now, without a
-release, say so:
+To change one group's live features, configs, operations and permissions now,
+without a release, say so:
 
 ```sh
 craftsman publish --group Production --activate --no-build --apply
@@ -189,31 +198,49 @@ carries no framework: it loads the package from your project's `Packages/`.
 
 ```toml
 [dependencies]
-CraftsmanControl = "averyark/craftsman-control@0.1"
+CraftsmanControl = "averyark/craftsman-control@0.2.0"
 Ledger = "xoifaii/ledger@5.2.1"
 ```
 
 `Ledger` is only needed if you open a data store (step 4), and must be the
-version the framework depends on. Map `Packages` to
-`ReplicatedStorage.Packages`. Every example here requires
+version the framework depends on. `wally install` also brings
+`averyark/keeper`, which the runtime hands to a feature's `OnActivate`. Map
+`Packages` to `ReplicatedStorage.Packages`. Every example here requires
 `@game/ReplicatedStorage/Packages/CraftsmanControl`.
 
-**3. Declare.** Put a **ModuleScript** at
-`ServerScriptService.Craftsman.Control.Definitions`. It must not touch `game`
-or use `const` at module scope, because the CLI loads it outside Roblox to
-publish it:
+**3. Declare.** A **feature** is a part of the game Project Control can switch
+on and off, and a **config** is a typed value on a feature that the console can
+change without a release. Declare each feature in a ModuleScript of its own, for
+example `ServerScriptService.Craftsman.Control.Shop`:
 
 ```lua
 local Control = require("@game/ReplicatedStorage/Packages/CraftsmanControl")
+local gt = Control.GreenTea
 
-local Shop = Control.Scope("Shop"):Flags({
-	Enabled = Control.Flag({
-		Type = "bool",
-		Default = true,
-		KilledValue = false,
-		Description = "Master switch for the in-game shop.",
+local Shop = Control.Scope("Shop"):Feature({
+	Description = "The in-game shop.",
+}):Config({
+	DiscountPercent = Control.Config(gt.number({ integer = true, range = "[0, 75]" }), {
+		Default = 0,
+		Description = "Store item discounts.",
 	}),
 })
+
+return Shop
+```
+
+The feature's `Active` is its on/off switch, `true` unless declared
+`Active = false`. Every config needs a `Default` that fits its GreenTea type:
+it is what the game runs on when Project Control is unreachable.
+
+Then put a **ModuleScript** at
+`ServerScriptService.Craftsman.Control.Definitions` that includes every
+feature module. Neither module may touch `game` or use `const` at module scope,
+because the CLI loads them outside Roblox to publish them:
+
+```lua
+local Control = require("@game/ReplicatedStorage/Packages/CraftsmanControl")
+local Shop = require("./Shop")
 
 return Control.Declare({
 	Universe = 10202097921, -- the universe id, not a place id
@@ -277,17 +304,66 @@ Control.Reporter.Start({
 	ceiling = Definitions.event_ceiling,
 })
 
-local Flags = Control.FlagService()
-
-Flags:Start(Definitions, {
+local Runtime: Control.Runtime = Control.Start(Definitions, {
 	OnEvent = Control.Reporter.Emit,
 	FetchCommands = Control.Reporter.Commands,
 })
 ```
 
-Register any `Control.OnCommand` handlers before `Flags:Start`. The Overview's
+Register any `Control.OnCommand` handlers before `Control.Start`. The Overview's
 setup checklist ticks off *A server has reported* when the first report gets
 through.
+
+The code that runs a feature reads it through the module that declared it. A
+feature is started and stopped by the runtime, possibly many times in one
+server's life, so setup goes in `OnActivate`, and everything it creates or
+connects goes through the Keeper it is handed, which is cleaned when the feature
+switches off. A config is read with a colon:
+
+```lua
+local Shop = require("@game/ServerScriptService/Craftsman/Control/Shop")
+
+Shop:OnActivate(function(keeper)
+	local stand = keeper:Clone(ShopStand)
+	stand.Parent = workspace
+
+	keeper:Connect(Players.PlayerAdded, GreetShopper)
+end)
+
+local function Buy(player, item)
+	if not Shop.Active then
+		return false, "The shop is closed"
+	end
+
+	local percent = Shop.DiscountPercent:Get()
+	-- ...
+end
+
+Shop.DiscountPercent:Observe(function(value, source)
+	SetDiscount(value)
+end)
+```
+
+**Features on the client.** A feature declared `Client = true` also runs on
+clients, and a config a client reads must be `Shared = true`. A client can only
+require a module it can see, so declare such a feature in a module under
+`ReplicatedStorage` (in `craftsman init`'s layout, the feature's
+`Definitions.luau`), still listed in `Includes` and inside a folder
+`ownedPaths` names (step 7). Then a LocalScript requires it and starts the
+client runtime once. Without that call a client feature never runs on a client,
+with no error:
+
+```lua
+local Client: Control.ClientRuntime = Control.StartClient()
+
+Client.OnReady(function()
+	LoadingScreen.Enabled = false
+end)
+```
+
+Every feature and config name in a client-readable module can be read by
+players, so nothing secret belongs in a name; an unshared config's value never
+leaves the server.
 
 **7. Describe the place.** A release is your Studio place with your code laid
 over it. `places/<role>.place.json` says how to build one. The file name is the

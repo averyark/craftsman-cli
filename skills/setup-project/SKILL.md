@@ -4,7 +4,7 @@ license: MIT
 metadata:
   author: averyark
   repository: craftsman-cli
-  cli-version: "0.6.1"
+  cli-version: "0.7.0"
 description: Set up Project Control in a Roblox game repository, end to end - install the craftsman CLI, Rojo and Wally, add the craftsman-control package, write the Definitions and Stores ModuleScripts and the start Script, describe the place, add the release workflow, sign in, publish, and add the signing key - while handing the person an exact checklist for the steps that need their browser, passkey or Roblox's Creator Hub. Use when the user asks to set up, onboard, integrate, connect or install Project Control, craftsman-control or the craftsman CLI in their game, follows operations.craftsman.systems/onboard, or has a half-finished setup that fails to publish or report. Also use to check an existing setup for the traps that fail silently.
 ---
 
@@ -115,13 +115,17 @@ If `rokit` itself is missing, stop and ask the person to install it
 Otherwise add only what `rokit.toml` lacks:
 
 ```bash
-rokit add averyark/craftsman-cli@0.6.1 craftsman
+rokit add averyark/craftsman-cli@0.7.0 craftsman
 rokit add rojo-rbx/rojo
 rokit add UpliftGames/wally
 ```
 
 The last word of the first line names the command `craftsman`. An older
-`craftsman` pin moves to 0.6.1: this skill's commands need it.
+`craftsman` pin moves to 0.7.0: this skill's commands need it, and CLI 0.7.x
+loads only framework 0.2.x. If the game already uses framework 0.1.x
+(`Control.Flag`, `:Flags`, `Control.FlagService`), stop and tell the person:
+moving it is a migration, not a pin bump, and follows
+`https://github.com/averyark/craftsman-control/blob/main/docs/migrating-to-configuration.md`.
 
 With the CLI installed, `craftsman init --place <placeId>` writes steps 9 to
 13's files at once for a project whose features live in `src/Features/`, and
@@ -134,24 +138,26 @@ Add to `wally.toml`'s `[dependencies]` (run `wally init` first if there is no
 `wally.toml`), then `wally install`:
 
 ```toml
-CraftsmanControl = "averyark/craftsman-control@0.1"
+CraftsmanControl = "averyark/craftsman-control@0.2.0"
 Ledger = "xoifaii/ledger@5.2.1"
 ```
 
 `Ledger` only matters once a data store is opened, and must be that version.
+`wally install` also brings `averyark/keeper`, which the framework needs.
 The Rojo project must map `Packages` to `ReplicatedStorage.Packages`; add it if
 it doesn't. If the project uses `ember.toml` rather than `wally.toml`, ask
 before changing its package manager.
 
 ### Steps 9-11: the code
 
-Three files, at **exact** paths in the DataModel. Put them wherever the
+These files go at **exact** paths in the DataModel. Put them wherever the
 repository keeps server code, and make the Rojo project map them there; the
 examples assume `src/Control/` and `src/Start.server.luau`.
 
 | File | DataModel path | Kind |
 |---|---|---|
 | `src/Control/Definitions.luau` | `ServerScriptService.Craftsman.Control.Definitions` | ModuleScript |
+| `src/Control/Shop.luau` (one per feature) | `ServerScriptService.Craftsman.Control.Shop` | ModuleScript |
 | `src/Control/Stores.luau` | `ServerScriptService.Craftsman.Control.Stores` | ModuleScript |
 | `src/Start.server.luau` | `ServerScriptService.Craftsman.Start` | Script |
 
@@ -165,21 +171,33 @@ examples assume `src/Control/` and `src/Start.server.luau`.
 }
 ```
 
-**Definitions** (step 9). Ask what the game should declare first; a master
-switch for a feature they already have is a good start. Don't invent a flag
-nobody asked for.
+**Definitions** (step 9). Ask what the game should declare first; a feature
+they already have, so it can be switched off, is a good start. Don't invent a
+feature or config nobody asked for. Each feature goes in a module of its own
+(here `src/Control/Shop.luau`); a feature's `Active` is its on/off switch, and
+every config needs a `Default` that fits its GreenTea type:
 
 ```lua
 local Control = require("@game/ReplicatedStorage/Packages/CraftsmanControl")
+local gt = Control.GreenTea
 
-local Shop = Control.Scope("Shop"):Flags({
-	Enabled = Control.Flag({
-		Type = "bool",
-		Default = true,
-		KilledValue = false,
-		Description = "Master switch for the in-game shop.",
+local Shop = Control.Scope("Shop"):Feature({
+	Description = "The in-game shop.",
+}):Config({
+	DiscountPercent = Control.Config(gt.number({ integer = true, range = "[0, 75]" }), {
+		Default = 0,
+		Description = "Store item discounts.",
 	}),
 })
+
+return Shop
+```
+
+`Definitions` includes every feature module:
+
+```lua
+local Control = require("@game/ReplicatedStorage/Packages/CraftsmanControl")
+local Shop = require("./Shop")
 
 return Control.Declare({
 	Universe = <universeId>,
@@ -188,9 +206,24 @@ return Control.Declare({
 })
 ```
 
-The CLI loads this module under Lune, outside Roblox, to publish it: **nothing
-at module scope may touch `game`, and no `const`.** `Universe` takes a list
+The CLI loads these modules under Lune, outside Roblox, to publish them:
+**nothing at module scope may touch `game`, `workspace`, `script` or `Enum`, and
+no `const`.** Declaration keys are PascalCase. `Universe` takes a list
 (`{ a, b }`) when the same code runs in several universes.
+
+A feature the client runs is declared `Client = true`, with every config the
+client reads `Shared = true`, in a module under `ReplicatedStorage` (in
+`craftsman init`'s layout, the feature's `Definitions.luau`), and needs a
+LocalScript that requires it and calls `Control.StartClient()` once; without
+that call it never runs on a client, with no error. Only do this when the
+person's feature has client code. Feature and config names are readable by
+players, so nothing secret goes in a name.
+
+The game's own code reads the feature through the module that declared it:
+setup in `Shop:OnActivate(function(keeper) ... end)`, connecting through the
+Keeper; a request-time check as `if not Shop.Active then`; a value as
+`Shop.DiscountPercent:Get()` or `:Observe(fn)`, always with a colon. Don't
+rewrite game code the person did not ask about.
 
 **Stores** (step 10). A ModuleScript that returns `Control`. With no entity
 declared yet it is only the first and last lines:
@@ -208,7 +241,7 @@ later declares an entity, its `Control.Store({ Entity = …, Ledger = Ledger })`
 goes here.
 
 **Start** (step 11). A Script inside `ServerScriptService.Craftsman`. Any
-`Control.OnCommand` handlers are registered before `Flags:Start`.
+`Control.OnCommand` handlers are registered before `Control.Start`.
 
 ```lua
 local HttpService = game:GetService("HttpService")
@@ -223,9 +256,7 @@ Control.Reporter.Start({
 	ceiling = Definitions.event_ceiling,
 })
 
-local Flags = Control.FlagService()
-
-Flags:Start(Definitions, {
+local Runtime: Control.Runtime = Control.Start(Definitions, {
 	OnEvent = Control.Reporter.Emit,
 	FetchCommands = Control.Reporter.Commands,
 })
