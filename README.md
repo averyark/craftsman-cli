@@ -10,7 +10,7 @@ repository holds only the released binaries. The source is developed with the
 With [Rokit](https://github.com/rojo-rbx/rokit), from your project's folder:
 
 ```sh
-rokit add averyark/craftsman-cli@0.6.1 craftsman
+rokit add averyark/craftsman-cli@0.7.0 craftsman
 ```
 
 The last argument names the command. Without it, Rokit names the command after
@@ -18,7 +18,7 @@ the repository, `craftsman-cli`. The same thing as a line in `rokit.toml`:
 
 ```toml
 [tools]
-craftsman = "averyark/craftsman-cli@0.6.1"
+craftsman = "averyark/craftsman-cli@0.7.0"
 ```
 
 Then run `rokit install`. Builds exist for Windows x86_64, Linux x86_64 and
@@ -36,6 +36,7 @@ folder holding `wally.toml`).
 | CLI | Framework |
 |---|---|
 | 0.1.x, 0.2.x, 0.3.x, 0.4.x, 0.5.x, 0.6.x | `>=0.1.0 <0.2.0` |
+| 0.7.x | `>=0.2.0 <0.3.0` |
 
 `craftsman --version` prints the CLI's version, the range it accepts and the
 framework it finds. A framework outside the range is refused, naming both
@@ -46,7 +47,7 @@ versions.
 | Command | What it does |
 |---|---|
 | `craftsman init` | Writes what a feature-routed game needs for Project Control. Never overwrites a file |
-| `craftsman serve` | Routes `src/Features` into `default.project.json` and runs `rojo serve`, restarting it when the routing changes |
+| `craftsman serve` | Routes `src/Features` into `default.project.json` and runs `rojo serve`, restarting it when the routing changes or when Rojo misses a change |
 | `craftsman project [--check]` | Routes `src/Features` into `default.project.json` and `release.project.json`, or checks they are current |
 | `craftsman packages [--no-types]` | Runs `wally install`, writes `sourcemap.json`, and gives luau-lsp the packages' types |
 | `craftsman publish` | Checks the declaration's manifest with Project Control and builds a release |
@@ -131,6 +132,14 @@ Names are matched exactly, case included. A `features.json` beside
 - `craftsman serve` regenerates the project and runs `rojo serve`. Adding,
   removing or renaming a feature or a routed file restarts `rojo serve`, and
   the Studio plugin must reconnect. Edits inside a feature restart nothing.
+  It also checks that Rojo is serving what is on disk: every 3 s, and at once
+  when Rojo prints an error, it compares the source of every script Rojo
+  holds with your files. When Rojo has missed a change, `serve` names the
+  files and restarts it, and the Studio plugin must reconnect then too.
+  This happens with Rojo 7.7: a file routed on its own, like `Handler.luau`
+  or `Types.luau`, that is deleted and recreated, even for a moment, is
+  never watched again, and Rojo keeps serving the old copy while the plugin
+  still shows as connected.
 - `craftsman project` regenerates once; `--check` exits 1 when the files are
   out of date, for CI.
 
@@ -168,7 +177,7 @@ because two of them fail silently when they are wrong.
 your project's folder:
 
 ```sh
-rokit add averyark/craftsman-cli@0.6.1 craftsman
+rokit add averyark/craftsman-cli@0.7.0 craftsman
 rokit add rojo-rbx/rojo
 rokit add UpliftGames/wally
 ```
