@@ -12,7 +12,8 @@
 # Ember or your own scripts -- any step in a job granted `id-token: write` can
 # mint it:
 #
-#   prepare   id-token. curl and jq only: lists commits and changelogs, and
+#   prepare   id-token. curl and jq only: lists commits and changelogs,
+#             downloads the Craftsman bundle craftsman.lock names, and
 #             downloads each "source": "control" place's Studio place.
 #   build     no id-token. Installs the tools and builds on those files.
 #   handover  id-token. curl and jq only: checks both artifacts against the
@@ -186,6 +187,174 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Craftsman comes from Project Control's registry, here, so the
+      # download link never leaves this job or reaches the log. Build installs
+      # it from the sealed inputs and asks nothing. The last deployed commit's
+      # bundle comes too when its craftsman.lock names another one.
+      - name: Fetch Craftsman
+        env:
+          FROM: ${{ inputs.from }}
+          REBUILD_OF: ${{ inputs.rebuild_of }}
+          ENDPOINT: ${{ vars.CONTROL_RELEASE_ENDPOINT || 'https://operations.craftsman.systems/api/release-ingest' }}
+          AUDIENCE: ${{ vars.CONTROL_RELEASE_AUDIENCE || 'https://operations.craftsman.systems' }}
+        run: |
+          set -euo pipefail
+          inputs="$RUNNER_TEMP/inputs"
+          answer="$RUNNER_TEMP/craftsman-fetch.json"
+          mkdir -p "$inputs"
+
+          # The registry sits beside release-ingest.
+          registry="${ENDPOINT%/}"
+          if [[ "$registry" != */release-ingest ]]; then
+            echo "::error::CONTROL_RELEASE_ENDPOINT must end in /release-ingest, so that craftsman-bundle beside it can be found."
+            exit 1
+          fi
+          registry="${registry%/release-ingest}/craftsman-bundle"
+
+          oidc() {
+            curl -sSf -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+              "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUDIENCE" | jq -r .value
+          }
+
+          # A commit's craftsman.lock, only as a regular file.
+          has_lock() {
+            local entry
+            entry="$(git ls-tree "$1" -- craftsman.lock)"
+            [[ "$entry" == "100644 blob "* || "$entry" == "100755 blob "* ]]
+          }
+
+          # Sets lock_version, lock_sha256, lock_tree and lock_shippable from
+          # the lock's text, or sets problem and fails. Each key once, as
+          # craftsman install writes it.
+          read_lock() {
+            local text key line value
+            local -a found
+            local pattern='^[[:space:]]*[a-z0-9]+[[:space:]]*=[[:space:]]*("([^"]*)"|([a-z]+))[[:space:]]*(#.*)?$'
+            text="$(tr -d '\r' <<<"$1")"
+            for key in version sha256 tree shippable; do
+              mapfile -t found < <(grep -E "^[[:space:]]*$key[[:space:]]*=" <<<"$text" || true)
+              if [ ${#found[@]} -eq 0 ]; then
+                problem="it has no $key"
+                return 1
+              fi
+              if [ ${#found[@]} -gt 1 ]; then
+                problem="it names $key more than once"
+                return 1
+              fi
+              line="${found[0]}"
+              if ! [[ "$line" =~ $pattern ]]; then
+                problem="its $key is not a quoted string, true or false"
+                return 1
+              fi
+              value="${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
+              printf -v "lock_$key" '%s' "$value"
+            done
+            if ! [[ "$lock_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+              problem="its version, \"$lock_version\", is not MAJOR.MINOR.PATCH"
+              return 1
+            fi
+            if ! [[ "$lock_sha256" =~ ^[0-9a-f]{64}$ ]]; then
+              problem="its sha256 is not a SHA-256 in lower-case hex"
+              return 1
+            fi
+            if ! [[ "$lock_tree" =~ ^[0-9a-f]{64}$ ]]; then
+              problem="its tree is not a SHA-256 in lower-case hex"
+              return 1
+            fi
+            if [ "$lock_shippable" != "true" ] && [ "$lock_shippable" != "false" ]; then
+              problem="its shippable is not true or false"
+              return 1
+            fi
+          }
+
+          # Fetches the bundle read_lock last read into $1, as bundle.zip and
+          # bundle.json, and checks both against the lock. The download link
+          # is masked, never printed, and gone from disk before it is used.
+          fetch_bundle() {
+            local dir="$1" status url token sha tree
+            rm -rf "$dir"
+            mkdir -p "$dir" || return 1
+            status="$(jq -n --arg v "$lock_version" '{version: $v}' |
+              curl -sS -o "$answer" -w '%{http_code}' -X POST "$registry/fetch" \
+                -H "Authorization: Bearer $(oidc)" -H "Content-Type: application/json" --data-binary @-)" || true
+            if [ "$status" != "200" ]; then
+              problem="Project Control answered $status: $(jq -r '.message // .' "$answer" 2>/dev/null || echo "nothing it could read")"
+              rm -f "$answer"
+              return 1
+            fi
+            url="$(jq -r '.data.url // empty' "$answer")"
+            if [ -n "$url" ]; then
+              echo "::add-mask::$url"
+              if [[ "$url" == *token=* ]]; then
+                token="${url#*token=}"
+                echo "::add-mask::${token%%&*}"
+              fi
+            fi
+            if [ "$(jq -r '.data.version' "$answer")" != "$lock_version" ] \
+                || [ "$(jq -r '.data.sha256' "$answer")" != "$lock_sha256" ] \
+                || [ "$(jq -r '.data.tree' "$answer")" != "$lock_tree" ]; then
+              problem="the registry's Craftsman $lock_version is $(jq -r '.data.sha256' "$answer"), and craftsman.lock names $lock_sha256. A published version never changes, so the lock names a build the registry never held"
+              rm -f "$answer"
+              return 1
+            fi
+            if ! jq -e -j '.data.bundle_json | strings' "$answer" > "$dir/bundle.json" || [ -z "$url" ]; then
+              problem="Project Control's answer held no bundle.json or no download link"
+              rm -f "$answer"
+              return 1
+            fi
+            rm -f "$answer"
+            if ! curl -sSf -o "$dir/bundle.zip" "$url"; then
+              problem="bundle.zip could not be downloaded; its link lives 60 seconds, so run it again"
+              return 1
+            fi
+            sha="$(sha256sum -- "$dir/bundle.zip" | cut -d' ' -f1)"
+            tree="$(sha256sum -- "$dir/bundle.json" | cut -d' ' -f1)"
+            if [ "$sha" != "$lock_sha256" ]; then
+              problem="bundle.zip's SHA-256 is $sha, and craftsman.lock names $lock_sha256"
+              return 1
+            fi
+            if [ "$tree" != "$lock_tree" ]; then
+              problem="bundle.json's SHA-256 is $tree, and craftsman.lock's tree is $lock_tree"
+              return 1
+            fi
+          }
+
+          if ! has_lock HEAD; then
+            echo "::error file=craftsman.lock::This commit has no craftsman.lock, so it still takes Craftsman from Wally. Run \`craftsman update\` to move it onto the Craftsman bundle, then commit craftsman.toml and craftsman.lock."
+            exit 1
+          fi
+          if ! read_lock "$(git show HEAD:craftsman.lock)"; then
+            echo "::error file=craftsman.lock::craftsman.lock cannot be read: $problem. Run \`craftsman install\` and commit what it writes."
+            exit 1
+          fi
+          if [ "$lock_shippable" != "true" ]; then
+            echo "::error file=craftsman.lock::craftsman.lock names a development bundle, $lock_version (shippable = false), which is never released. Run \`craftsman update\` to move to a published one, and commit craftsman.lock."
+            exit 1
+          fi
+          if ! fetch_bundle "$inputs/bundle"; then
+            echo "::error file=craftsman.lock::Craftsman $lock_version was not fetched: $problem."
+            exit 1
+          fi
+          echo "::notice::Craftsman $lock_version (${lock_sha256:0:12}) fetched from Project Control's registry."
+          head_lock="$lock_version $lock_sha256 $lock_tree $lock_shippable"
+
+          if [ -z "$REBUILD_OF" ] && [[ "$FROM" =~ ^[0-9a-f]{40}$ ]] && git cat-file -e "$FROM^{commit}" 2>/dev/null; then
+            if ! has_lock "$FROM"; then
+              echo "::notice::The last deployed commit has no craftsman.lock, so it is built with Wally, as it was then."
+            elif ! read_lock "$(git show "$FROM:craftsman.lock")"; then
+              echo "::warning::The last deployed commit's craftsman.lock cannot be read ($problem), so save data will not be compared."
+            elif [ "$lock_version $lock_sha256 $lock_tree $lock_shippable" = "$head_lock" ]; then
+              echo "::notice::The last deployed commit names the same Craftsman, $lock_version."
+            elif [ "$lock_shippable" != "true" ]; then
+              echo "::warning::The last deployed commit names a development bundle, $lock_version, so save data will not be compared."
+            elif ! fetch_bundle "$inputs/base-bundle"; then
+              rm -rf "$inputs/base-bundle"
+              echo "::warning::The last deployed commit's Craftsman $lock_version was not fetched ($problem), so save data will not be compared."
+            else
+              echo "::notice::The last deployed commit's Craftsman $lock_version fetched too."
+            fi
+          fi
+
       # "source": "control": download the Studio place Project Control holds,
       # here, so its signed URL never leaves this job or reaches the log.
       - name: Fetch Studio places
@@ -269,7 +438,9 @@ jobs:
                 exit 1
               fi
 
-              curl -sSf --compressed -o "$inputs/baselines/$name.rbxl" "$(jq -r .data.location "$answer")"
+              location="$(jq -r .data.location "$answer")"
+              echo "::add-mask::$location"
+              curl -sSf --compressed -o "$inputs/baselines/$name.rbxl" "$location"
               entry="$(jq -c --arg b "baselines/$name.rbxl" '. + {baseline: $b}' <<<"$entry")"
 
               version="$(jq -r '.data.version // empty' "$answer")"
@@ -278,7 +449,9 @@ jobs:
               fi
 
               if [ "$(jq -r '.data.previous // empty' "$answer")" != "" ]; then
-                if curl -sSf --compressed -o "$inputs/baselines/$name.previous.rbxl" "$(jq -r .data.previous.location "$answer")"; then
+                previous_location="$(jq -r .data.previous.location "$answer")"
+                echo "::add-mask::$previous_location"
+                if curl -sSf --compressed -o "$inputs/baselines/$name.previous.rbxl" "$previous_location"; then
                   entry="$(jq -c --arg b "baselines/$name.previous.rbxl" '. + {previous: $b}' <<<"$entry")"
                 else
                   rm -f "$inputs/baselines/$name.previous.rbxl"
@@ -364,14 +537,22 @@ jobs:
             exit 1
           fi
 
-      # rokit.toml must list craftsman, rojo and wally.
+      # rokit.toml must list craftsman and rojo, and wally too for a project
+      # with a wally.toml.
       - name: Install pinned tools
         uses: CompeyDev/setup-rokit@1d9390883f7ebce19d48f5b8d006e11d387c92ab # v0.2.1
         with:
           version: v1.2.0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Resolve packages
+      # The bundle Prepare fetched and sealed: nothing is downloaded here, and
+      # the CLI checks it against craftsman.lock again.
+      - name: Install Craftsman
+        run: craftsman install --frozen --from "$RUNNER_TEMP/inputs/bundle"
+
+      # Only for a game that takes packages of its own from Wally.
+      - name: Resolve Wally packages
+        if: hashFiles('wally.toml') != ''
         run: wally install
 
       # Only for a project that also uses Ember (e.g. Craftsman Kit). Pinned by
@@ -410,11 +591,32 @@ jobs:
 
           # The last deployed commit, to compare save data against. Its tools
           # are installed without Rokit's trust prompt, which is why this runs
-          # only here, in the job that cannot mint the OIDC token.
+          # only here, in the job that cannot mint the OIDC token. A commit
+          # with a craftsman.lock installs the bundle Prepare fetched for it,
+          # or the head's when it names the same one; a commit from before
+          # the move off Wally installs with Wally, as it did then.
+          install_base() {
+            rokit install --no-trust-check > /dev/null || return 1
+            if [ -f craftsman.lock ]; then
+              craftsman install --frozen --from "$1" > /dev/null || return 1
+              if [ -f wally.toml ]; then
+                wally install > /dev/null || return 1
+              fi
+            else
+              wally install > /dev/null || return 1
+            fi
+            if [ -f ember.toml ]; then
+              embr install --locked > /dev/null || return 1
+            fi
+          }
+
           if [ -z "$REBUILD_OF" ] && [[ "$FROM" =~ ^[0-9a-f]{40}$ ]] && git cat-file -e "$FROM^{commit}" 2>/dev/null; then
             git worktree add --detach base "$FROM" > /dev/null
-            if ! (cd base && rokit install --no-trust-check > /dev/null && wally install > /dev/null \
-                && { [ ! -f ember.toml ] || embr install --locked > /dev/null; }); then
+            base_bundle="$inputs/bundle"
+            if [ -d "$inputs/base-bundle" ]; then
+              base_bundle="$inputs/base-bundle"
+            fi
+            if ! (cd base && install_base "$base_bundle"); then
               echo "::warning::Could not install the last deployed commit's tools, so save data was not compared."
               git worktree remove --force base
             fi
