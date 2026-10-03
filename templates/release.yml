@@ -1,8 +1,8 @@
 # Copy to .github/workflows/release.yml.
 #
 # Started by `craftsman publish --apply`, never by a push. Builds each
-# places/<role>.place.json and hands it to Project Control, which decides where
-# it may deploy. Holds no Roblox key and cannot publish a place.
+# [places.<role>] in craftsman.toml and hands it to Project Control, which
+# decides where it may deploy. Holds no Roblox key and cannot publish a place.
 #
 # Needs only this repository named in the console under Settings -> Releases.
 # No secret: the run signs in with GitHub's OIDC token. The repository variable
@@ -12,9 +12,9 @@
 # Ember or your own scripts -- any step in a job granted `id-token: write` can
 # mint it:
 #
-#   prepare   id-token. curl and jq only: lists commits and changelogs,
-#             downloads the Craftsman bundle craftsman.lock names, and
-#             downloads each "source": "control" place's Studio place.
+#   prepare   id-token. curl, jq and Python's standard library only: lists
+#             commits and changelogs, downloads the Craftsman bundle
+#             craftsman.lock names, and downloads each place's Studio place.
 #   build     no id-token. Installs the tools and builds on those files.
 #   handover  id-token. curl and jq only: checks both artifacts against the
 #             SHA-256 the other jobs reported, then hands the candidates over.
@@ -355,8 +355,9 @@ jobs:
             fi
           fi
 
-      # "source": "control": download the Studio place Project Control holds,
-      # here, so its signed URL never leaves this job or reaches the log.
+      # source = "control" (the default): download the Studio place Project
+      # Control holds, here, so its signed URL never leaves this job or reaches
+      # the log.
       - name: Fetch Studio places
         id: plan
         env:
@@ -378,10 +379,7 @@ jobs:
           }
 
           plan='[]'
-          places=(places/*.place.json)
-          if [ ${#places[@]} -eq 0 ]; then
-            echo "::notice::No places/*.place.json, so nothing to build."
-          fi
+          places='[]'
 
           # Never read a symbolic link, or a path whose real location leaves the
           # checkout: a committed link could point at /proc/self/environ.
@@ -393,28 +391,44 @@ jobs:
             [[ "$real" == "$root"/* ]]
           }
 
-          for place in "${places[@]}"; do
-            name="$(basename "$place" .place.json)"
-            if ! in_repository "$place"; then
-              echo "::error file=$place::A place declaration must be a regular file inside the repository, never a symbolic link."
+          if [ -e craftsman.toml ]; then
+            if ! in_repository craftsman.toml; then
+              echo "::error file=craftsman.toml::craftsman.toml must be a regular file inside the repository, never a symbolic link."
               exit 1
             fi
-            place_id="$(jq -r '.placeId' "$place")"
+            # Each [places.<role>], with the source the CLI defaults to. Python's
+            # standard library reads the TOML: nothing is installed in this job.
+            places="$(python3 -c 'import json, sys, tomllib
+          declared = tomllib.load(open("craftsman.toml", "rb")).get("places", {})
+          json.dump([{"name": role, "place_id": p.get("place"), "universe_id": p.get("universe"), "source": p.get("source", "control")}
+                     for role, p in sorted(declared.items()) if isinstance(p, dict)], sys.stdout)')"
+          fi
+          if [ "$(jq length <<<"$places")" -eq 0 ]; then
+            echo "::notice::craftsman.toml declares no [places], so nothing to build."
+          fi
+
+          while IFS= read -r declared; do
+            name="$(jq -r .name <<<"$declared")"
+            place_id="$(jq -r .place_id <<<"$declared")"
+            universe_id="$(jq -r .universe_id <<<"$declared")"
+            if ! [[ "$name" =~ ^[a-z][a-z0-9-]{0,31}$ ]]; then
+              echo "::error file=craftsman.toml::The role \"$name\" must be up to 32 lowercase letters, digits and hyphens, starting with a letter."
+              exit 1
+            fi
+            if ! [[ "$place_id" =~ ^[0-9]+$ && "$universe_id" =~ ^[0-9]+$ ]]; then
+              echo "::error file=craftsman.toml::[places.$name] needs a numeric universe and place."
+              exit 1
+            fi
             if [ -n "$ONLY_PLACE" ] && [ "$place_id" != "$ONLY_PLACE" ]; then
               continue
             fi
             if [ -n "$PLACES" ] && [[ ",$PLACES," != *",$place_id,"* ]]; then
               continue
             fi
-            if ! [[ "$name" =~ ^[a-z][a-z0-9-]{0,31}$ ]]; then
-              echo "::error file=$place::The role \"$name\" must be up to 32 lowercase letters, digits and hyphens, starting with a letter."
-              exit 1
-            fi
-            universe_id="$(jq -r '.universeId' "$place")"
-            entry="$(jq -n -c --arg name "$name" --arg place "$place" --arg p "$place_id" --arg u "$universe_id" \
-              '{name: $name, place: $place, place_id: $p, universe_id: $u}')"
+            entry="$(jq -n -c --arg name "$name" --arg p "$place_id" --arg u "$universe_id" \
+              '{name: $name, place_id: $p, universe_id: $u}')"
 
-            if [ "$(jq -r '.source' "$place")" = "control" ]; then
+            if [ "$(jq -r .source <<<"$declared")" = "control" ]; then
               request='{}'
               if [ -n "$ONLY_PLACE" ] && [ -n "$BASELINE_ID" ]; then
                 request="$(jq -n --arg b "$BASELINE_ID" '{baseline_id: $b}')"
@@ -427,14 +441,14 @@ jobs:
               # an upload, registered by handover. Not a failed build.
               if [ "$status" = "409" ] && [ "$(jq -r '.reason // empty' "$answer")" = "studio_unavailable" ]; then
                 entry="$(jq -c --arg problem "$(jq -r '.message' "$answer")" '. + {waiting: $problem}' <<<"$entry")"
-                echo "::notice file=$place::$name has no Studio place to build on; it will wait for an upload."
+                echo "::notice file=craftsman.toml::$name has no Studio place to build on; it will wait for an upload."
                 plan="$(jq -c --argjson e "$entry" '. + [$e]' <<<"$plan")"
                 rm -f "$answer"
                 continue
               fi
 
               if [ "$status" != "200" ]; then
-                echo "::error file=$place::$name: Project Control answered $status: $(jq -r '.message // .' "$answer")"
+                echo "::error file=craftsman.toml::$name: Project Control answered $status: $(jq -r '.message // .' "$answer")"
                 exit 1
               fi
 
@@ -461,14 +475,14 @@ jobs:
             fi
 
             plan="$(jq -c --argjson e "$entry" '. + [$e]' <<<"$plan")"
-          done
+          done < <(jq -c ".[]" <<<"$places")
 
           if [ -n "$ONLY_PLACE" ] && [ "$(jq length <<<"$plan")" -eq 0 ]; then
-            echo "::error::No places/*.place.json declares place $ONLY_PLACE."
+            echo "::error::No [places] in craftsman.toml declares place $ONLY_PLACE."
             exit 1
           fi
           if [ -n "$PLACES" ] && [ "$(jq length <<<"$plan")" -eq 0 ]; then
-            echo "::error::No places/*.place.json declares any of $PLACES."
+            echo "::error::No [places] in craftsman.toml declares any of $PLACES."
             exit 1
           fi
 
@@ -624,7 +638,6 @@ jobs:
 
           for entry in "${entries[@]}"; do
             name="$(jq -r .name <<<"$entry")"
-            place="$(jq -r .place <<<"$entry")"
             compare=()
             source_args=()
 
@@ -644,21 +657,36 @@ jobs:
               fi
             fi
 
-            if [ -f "base/$place" ]; then
-              if (cd base && craftsman release "$place" --data-only --out ../dist-base); then
+            # The last deployed commit declares this place in its craftsman.toml,
+            # or, from before craftsman.toml held places, as places/<role>.place.json.
+            declared=""
+            committed=""
+            if [ -f "base/places/$name.place.json" ]; then
+              declared="places/$name.place.json"
+              committed="$(jq -r '.baseline // empty' "base/$declared")"
+            elif [ -f base/craftsman.toml ]; then
+              found="$(python3 -c 'import json, sys, tomllib
+          json.dump(tomllib.load(open(sys.argv[1], "rb")).get("places", {}).get(sys.argv[2]), sys.stdout)' base/craftsman.toml "$name")"
+              if [ "$found" != "null" ]; then
+                declared="$name"
+                committed="$(jq -r '.baseline // empty' <<<"$found")"
+              fi
+            fi
+
+            if [ -n "$declared" ]; then
+              if (cd base && craftsman release "$declared" --data-only --out ../dist-base); then
                 compare+=(--previous-release "dist-base/$name.release.json")
               else
                 echo "::warning::The last deployed commit's declaration for $name did not load, so save data was not compared."
               fi
 
-              committed="$(jq -r '.baseline // empty' "base/$place")"
               if [ -n "$committed" ] && [ -f "base/$committed" ]; then
                 compare+=(--previous "base/$committed")
               fi
             fi
 
             echo "::group::$name"
-            craftsman release "$place" --commit "$COMMIT" "${source_args[@]}" "${compare[@]}"
+            craftsman release "$name" --commit "$COMMIT" "${source_args[@]}" "${compare[@]}"
             echo "::endgroup::"
           done
 
