@@ -1,16 +1,16 @@
 # craftsman
 
-The `craftsman` command-line tool for Project Control: it publishes a game's
-declaration, builds release candidates and runs the in-Roblox tests. This
-repository holds only the released binaries. The source is developed with the
-`craftsman-control` framework.
+The `craftsman` command-line tool for Project Control: it installs Craftsman
+into a game, publishes the game's declaration, builds release candidates and
+runs the in-Roblox tests. This repository holds only the released binaries.
+The source is developed with the `craftsman-control` framework.
 
 ## Install
 
 With [Rokit](https://github.com/rojo-rbx/rokit), from your project's folder:
 
 ```sh
-rokit add averyark/craftsman-cli@0.7.0 craftsman
+rokit add averyark/craftsman-cli@0.10.2 craftsman
 ```
 
 The last argument names the command. Without it, Rokit names the command after
@@ -18,7 +18,7 @@ the repository, `craftsman-cli`. The same thing as a line in `rokit.toml`:
 
 ```toml
 [tools]
-craftsman = "averyark/craftsman-cli@0.7.0"
+craftsman = "averyark/craftsman-cli@0.10.2"
 ```
 
 Then run `rokit install`. Builds exist for Windows x86_64, Linux x86_64 and
@@ -27,26 +27,69 @@ aarch64, and macOS x86_64 and aarch64.
 `craftsman release` also needs Rojo, so a project's `rokit.toml` should list
 `rojo` too.
 
-## Framework version
+## Craftsman's packages
 
-The CLI does not carry the framework. It loads `craftsman-control` from the
-project's own `Packages/`, found from the working directory upward (the nearest
-folder holding `wally.toml`).
+The CLI does not carry the framework. Craftsman is four packages, each
+published on its own and at its own version:
 
-| CLI | Framework |
-|---|---|
-| 0.1.x, 0.2.x, 0.3.x, 0.4.x, 0.5.x, 0.6.x | `>=0.1.0 <0.2.0` |
-| 0.7.x | `>=0.2.0 <0.3.0` |
+| Package | Installs as | Version |
+|---|---|---|
+| Control | `CraftsmanPackages/CraftsmanControl` | always the CLI's own |
+| Craftsman Kit | `CraftsmanPackages/Craftsman` | its own |
+| Lifecycle | `CraftsmanPackages/Lifecycle` | its own |
+| deps | the third-party code the three share (Keeper, Promise, Signal, ByteNet, Ledger, Konsole, and Jest in `CraftsmanDevPackages`) | its own |
 
-`craftsman --version` prints the CLI's version, the range it accepts and the
-framework it finds. A framework outside the range is refused, naming both
-versions.
+`craftsman init`, `install` and `update` download them from Project Control's
+registry into `CraftsmanPackages/` and `CraftsmanDevPackages/`, which are
+gitignored and mapped into `ReplicatedStorage`. Code requires them from there,
+e.g. `@game/ReplicatedStorage/CraftsmanPackages/CraftsmanControl`. Wally never
+installs any of them; a game may keep Wally for packages of its own, in
+`Packages/`.
 
-**Upgrading to 0.7.x.** CLI 0.7.0 goes with framework 0.2.0, which replaced
-flags with features and configs. `Control.Flag`, `:Flags`,
-`Control.FlagService`, `KilledValue`, `Schedulable` and `SnapshotUrl` were
-removed with no alias, and hosted flag values, kills and schedules do not carry
-over. Move both pins together, then:
+`craftsman.lock` names each package's version and hashes, and is committed:
+`craftsman install` installs exactly what it names, and CI does the same. A
+package is checked against the lock, and the four against each other, before
+anything is written.
+
+- `craftsman update` moves every package to the newest set that fits.
+- `craftsman update kit` moves only the kit, keeping the others where they are
+  while they still fit. `craftsman update kit@0.10.1` pins it exactly.
+- Control moves with the CLI: change the `craftsman` pin in `rokit.toml`, run
+  `rokit install`, then `craftsman update`. When a newer Control is published,
+  `update` prints the `rokit.toml` line that would run it, and never edits the
+  file itself.
+
+Downloading needs `craftsman login` and a GitHub account attached to a project
+(see [Signing in](#signing-in)), or in GitHub Actions the run's OIDC token from
+a repository bound to a project, which the release workflow template uses.
+
+`craftsman --version` prints the CLI's version and the Control it finds.
+`craftsman doctor` checks that what is installed is what `craftsman.lock`
+names, and that Control is the CLI's version.
+
+### Moving a game onto the packages
+
+- **A game that still installs Craftsman with Wally** (its `wally.toml` names
+  `averyark/craftsman-control`, `-kit` or `-lifecycle`): `craftsman update`
+  moves it, all or nothing. It removes those packages and the ones Craftsman
+  carries from `wally.toml`, rewrites requires of
+  `ReplicatedStorage/Packages/<name>` to `CraftsmanPackages/<name>`, maps both
+  folders, moves `features.json` and `src/CraftsmanConfig.luau` into
+  `craftsman.toml`, and installs the packages. It lists anything it cannot
+  change safely.
+- **A game on CLI 0.9 or 0.10.0**, whose `craftsman.lock` names one bundle:
+  move the `rokit.toml` pin to 0.10.2, run `rokit install` and
+  `craftsman update`, and replace `.github/workflows/release.yml` with
+  [`templates/release.yml`](templates/release.yml): the old workflow cannot read
+  the new lock. Commit `craftsman.lock`, `craftsman.toml`, `rokit.toml` and the
+  workflow. `install` refuses a lock that still names a bundle, saying so.
+
+### Upgrading older declarations
+
+**From flags (framework 0.1.x).** Framework 0.2.0 replaced flags with features
+and configs. `Control.Flag`, `:Flags`, `Control.FlagService`, `KilledValue`,
+`Schedulable` and `SnapshotUrl` were removed with no alias, and hosted flag
+values, kills and schedules do not carry over:
 
 1. Put each flag under a feature: `Control.Scope("Shop"):Feature():Config({ ... })`,
    with each value declared as `Control.Config(gtType, { Default = ... })`. A
@@ -59,31 +102,56 @@ over. Move both pins together, then:
 4. Publish with `craftsman publish --group <group> --activate --apply`, then set the
    hosted values again in the console's Configuration tab.
 
+**Declaring where it is used.** A config or a command may be declared in the
+file that uses it, with `<scope>:Declare(name, spec)` (`craftsman-control`'s
+`docs/features.md`, *Declaring where it is used*). Three things can stop you:
+
+- `Declare` is a reserved name. A config, command or child scope called
+  `Declare` fails to load, saying a scope answers to that name itself. Rename
+  it.
+- Once a feature's files call `:Declare(`, `craftsman project` writes that
+  feature's `Definitions/Generated.luau`, and `Definitions` must be a folder
+  whose `init.luau` adopts it with `require("@self/Generated")`. `release` and
+  `publish` refuse a `Generated.luau` that is stale or that nothing adopts. Run
+  `craftsman project` (or keep `craftsman serve` running), and commit
+  `Generated.luau` with the change.
+- The first time a file contains `:Declare(`, the CLI downloads Luau's
+  `luau-ast` into `~/.craftsman/tools/` and checks it against a pinned SHA-256.
+  On a machine that cannot download it, set `CRAFTSMAN_LUAU_AST` to a
+  `luau-ast` you already have. Rokit cannot install it: under that alias it
+  installs the Luau interpreter, which runs the file instead of parsing it.
+
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `craftsman init` | Writes what a feature-routed game needs for Project Control. Never overwrites a file |
+| `craftsman init` | Installs Craftsman's packages and writes what a feature-routed game needs for Project Control. Never overwrites a file |
+| `craftsman install [--frozen]` | Installs exactly the packages `craftsman.lock` names, and writes `Settings.luau` from `craftsman.toml` |
+| `craftsman update [<package>[@<version>]]` | Moves the packages, one or all, and moves a game off Wally |
+| `craftsman feature <Name> <description>` | Adds a feature: its folder and `Definitions`, and its entry in the declaration's `Includes` |
 | `craftsman serve` | Routes `src/Features` into `default.project.json` and runs `rojo serve`, restarting it when the routing changes or when Rojo misses a change |
 | `craftsman project [--check]` | Routes `src/Features` into `default.project.json` and `release.project.json`, or checks they are current |
-| `craftsman packages [--no-types]` | Runs `wally install`, writes `sourcemap.json`, and gives luau-lsp the packages' types |
+| `craftsman check` | Type-checks and lints the code with luau-lsp, against `check-baseline.json` |
+| `craftsman doctor` | Looks for the mistakes that fail silently, and says how to fix each |
 | `craftsman publish` | Checks the declaration's manifest with Project Control and builds a release |
+| `craftsman status` | Says what Project Control has for this project: places, releases, the session |
 | `craftsman store plan \| import` | Prints the store catalogue's plan, or imports what Roblox already sells |
-| `craftsman release <place.json>` | Builds a release candidate place file and its report |
-| `craftsman test-roblox [<place.json>]` | Builds this checkout and runs `verify/` against it in Roblox |
+| `craftsman release [<role>]` | Builds a release candidate place file and its report |
+| `craftsman test-roblox [<role>]` | Builds this checkout and runs `verify/` against it in Roblox |
 | `craftsman login` | Signs this machine in to Project Control with GitHub |
 | `craftsman logout` | Signs this machine out and forgets its session |
 | `craftsman whoami` | Says who this machine is signed in as, until when, and in which projects |
 | `craftsman summary [<dir>]` | Prints the release reports in `<dir>` (default `dist`) as Markdown |
 | `craftsman skills [--check]` | Mirrors `.agents/skills` into `.claude/skills`, or checks that it matches |
-| `craftsman --version` | Prints the versions described above |
+| `craftsman package <action>` | Builds and publishes one of Craftsman's own packages. For Craftsman's repositories, never a game's |
+| `craftsman --version` | Prints the CLI's version and the Control it finds |
 | `craftsman help [<command>]` | Lists every command, or one command's options and examples |
 
 Every command also takes `--help`. An option a command does not have is
 refused, naming the nearest one (`--aply`: *Did you mean --apply?*), rather
 than ignored.
 
-To wire the framework into a game (the package, the `Stores` ModuleScript, the
+To wire the framework into a game (the packages, the `Stores` ModuleScript, the
 declaration and its signing key, the game key's secret, the place file), follow
 [Integrate into your game](#integrate-into-your-game) below.
 
@@ -126,26 +194,33 @@ committed.
 | `Handler.luau` or `Handler/` | `ServerScriptService/Handlers/<Feature>` |
 | `Network`, `Definitions`, `Types`, `Lookup` | inside the feature's `Shared` module, or a Folder in its place |
 
-Names are matched exactly, case included. A `features.json` beside
-`base.project.json` replaces the table:
+Names are matched exactly, case included. `[features]` in `craftsman.toml`
+replaces the table:
 
-```json
-{
-  "folder": "src/Features",
-  "routes": {
-    "Server": "ServerScriptService/Features",
-    "Client": "StarterPlayer/StarterPlayerScripts/Features",
-    "Types": { "into": "Server" }
-  }
-}
+```toml
+[features]
+folder = "src/Features"
+
+[[features.routes]]
+name = "Server"
+to = "ServerScriptService/Features"
+
+[[features.routes]]
+name = "Types"
+into = "Server"
 ```
 
-- `craftsman init --place <placeId>` writes `base.project.json` (a copy of
-  your `default.project.json` if you have one), `src/Features/`, the
-  `Stores`, `Definitions` and `Start` files, `places/main.place.json`, the
-  release workflow, a VS Code task running `craftsman serve`, and
-  `.gitignore` entries. It never overwrites, so run it again to add what is
-  missing, e.g. a second place with `--role lobby`.
+A `features.json` from an older CLI is no longer read: `craftsman install`
+moves it into `craftsman.toml` and deletes it.
+
+- `craftsman init --place <placeId>` installs Craftsman's packages (writing
+  `craftsman.toml` and `craftsman.lock`), then writes `base.project.json` (a
+  copy of your `default.project.json` if you have one), `src/Features/`, the
+  `Stores`, `Definitions` and `Start` files, two bootstraps that start the kit
+  and Lifecycle, `[places.main]` in `craftsman.toml`, the release workflow, a
+  VS Code task running `craftsman serve`, and `.gitignore` entries. It never
+  overwrites, so run it again to add what is missing, e.g. a second place with
+  `--role lobby`.
 - `craftsman serve` regenerates the project and runs `rojo serve`. Adding,
   removing or renaming a feature or a routed file restarts `rojo serve`, and
   the Studio plugin must reconnect. Edits inside a feature restart nothing.
@@ -160,21 +235,11 @@ Names are matched exactly, case included. A `features.json` beside
 - `craftsman project` regenerates once; `--check` exits 1 when the files are
   out of date, for CI.
 
-Every route's container exists even while no feature uses it, so a place's
-`ownedPaths` does not change as features are added. When it misses
-something, `init`, `serve` and `project` print the paths to add.
-`craftsman release` refuses a generated overlay that is out of date, naming
-`craftsman project`, so a build cannot leave a feature out.
-
-### `packages`
-
-`craftsman packages` runs `wally install`, routes `src/Features` when there is
-a `base.project.json`, writes `sourcemap.json` from `default.project.json`,
-then runs `wally-package-types` on `Packages/`, `ServerPackages/` and
-`DevPackages/`, and puts back the generic type defaults it drops (Jecs's
-`Entity<T = nil>` would otherwise become `Entity<T>`). It needs `wally`,
-`rojo` and `wally-package-types` in `rokit.toml`, and names any that are
-missing before it runs anything. `--no-types` skips `wally-package-types`.
+Every route's container exists even while no feature uses it, and a place
+owns whatever the release project maps, so nothing needs listing as features
+are added. `default.project.json` and `release.project.json` are generated and
+gitignored: `craftsman install` and `serve` write them, and `craftsman release`
+writes them again before it builds, so a build cannot leave a feature out.
 
 ### `test-roblox`
 
@@ -188,41 +253,53 @@ build starts from, and a protected group takes a passkey.
 ## Integrate into your game
 
 There are nine steps, done in order. Each one names the exact place things go,
-because two of them fail silently when they are wrong.
+because two of them fail silently when they are wrong. `craftsman init` writes
+most of steps 4 to 8 for you; the steps say what it wrote, so you can check it.
 
 **1. Install the tools.** With [Rokit](https://github.com/rojo-rbx/rokit), in
 your project's folder:
 
 ```sh
-rokit add averyark/craftsman-cli@0.7.0 craftsman
+rokit add averyark/craftsman-cli@0.10.2 craftsman
 rokit add rojo-rbx/rojo
-rokit add UpliftGames/wally
 ```
 
-The last argument of the first line names the command `craftsman`. The CLI
-carries no framework: it loads the package from your project's `Packages/`.
+The last argument of the first line names the command `craftsman`. Add
+`UpliftGames/wally` only if the game installs packages of its own with Wally;
+Craftsman itself never comes from Wally.
 
-**2. Add the package.** In `wally.toml`, then run `wally install`:
+**2. Sign in**, once per machine, because downloading Craftsman needs it. Link
+GitHub on the console's Account page
+(`https://operations.craftsman.systems/account`) and have an administrator
+attach it to the project. Then run:
 
-```toml
-[dependencies]
-CraftsmanControl = "averyark/craftsman-control@0.2.0"
-Ledger = "xoifaii/ledger@5.2.1"
+```sh
+craftsman login
+craftsman whoami   # the project must be in its list
 ```
 
-`Ledger` is only needed if you open a data store (step 4), and must be the
-version the framework depends on. `wally install` also brings
-`averyark/keeper`, which the runtime hands to a feature's `OnActivate`. Map
-`Packages` to `ReplicatedStorage.Packages`. Every example here requires
-`@game/ReplicatedStorage/Packages/CraftsmanControl`.
+**3. Install Craftsman:**
 
-**3. Declare.** A **feature** is a part of the game Project Control can switch
+```sh
+craftsman init --place <placeId>
+```
+
+It downloads Control, the kit, Lifecycle and their deps into
+`CraftsmanPackages/` and `CraftsmanDevPackages/`, writes `craftsman.toml` and
+`craftsman.lock`, and the files the next steps describe. Commit
+`craftsman.toml` and `craftsman.lock`; the package folders are gitignored and
+`craftsman install` puts them back. A game that still installs Craftsman with
+Wally runs `craftsman update` instead (see
+[Moving a game onto the packages](#moving-a-game-onto-the-packages)).
+
+**4. Declare.** A **feature** is a part of the game Project Control can switch
 on and off, and a **config** is a typed value on a feature that the console can
-change without a release. Declare each feature in a ModuleScript of its own, for
-example `ServerScriptService.Craftsman.Control.Shop`:
+change without a release. Declare each feature in its folder, for example
+`src/Features/Shop/Definitions.luau`, which the routing puts in
+`ReplicatedStorage.Features.Shop`:
 
 ```lua
-local Control = require("@game/ReplicatedStorage/Packages/CraftsmanControl")
+local Control = require("@game/ReplicatedStorage/CraftsmanPackages/CraftsmanControl")
 local gt = Control.GreenTea
 
 local Shop = Control.Scope("Shop"):Feature({
@@ -241,14 +318,13 @@ The feature's `Active` is its on/off switch, `true` unless declared
 `Active = false`. Every config needs a `Default` that fits its GreenTea type:
 it is what the game runs on when Project Control is unreachable.
 
-Then put a **ModuleScript** at
-`ServerScriptService.Craftsman.Control.Definitions` that includes every
-feature module. Neither module may touch `game` or use `const` at module scope,
-because the CLI loads them outside Roblox to publish them:
+Then the declaration, `src/Control/Definitions.luau`, includes every feature.
+`init` writes it with your universe, and the routing maps it to
+`ReplicatedStorage.Craftsman.Definitions`, where clients can read it too:
 
 ```lua
-local Control = require("@game/ReplicatedStorage/Packages/CraftsmanControl")
-local Shop = require("./Shop")
+local Control = require("@game/ReplicatedStorage/CraftsmanPackages/CraftsmanControl")
+local Shop = require("../Features/Shop/Definitions")
 
 return Control.Declare({
 	Universe = 10202097921, -- the universe id, not a place id
@@ -258,19 +334,23 @@ return Control.Declare({
 })
 ```
 
+Neither module may read `game` or use `const` at module scope, because the CLI
+loads them outside Roblox to publish them.
+
 `SigningKey` is the public half of your project's signing key. Leave the line
 commented out until you have copied the key from **Settings → Signing** in the
 console, because a publish refuses anything that is not a key. Without it a
 server trusts unsigned commands and documents, and warns at boot. With it, a
 server refuses anything unsigned or signed by another key.
 
-**4. Open your stores from a ModuleScript**, at exactly
-`ServerScriptService.Craftsman.Control.Stores`. It returns `Control`:
+**5. Open your stores from a ModuleScript**, at exactly
+`ServerScriptService.Craftsman.Control.Stores` (`src/Control/Stores.luau`,
+which `init` writes). It returns `Control`:
 
 ```lua
-local Control = require("@game/ReplicatedStorage/Packages/CraftsmanControl")
-local Ledger = require("@game/ReplicatedStorage/Packages/Ledger")
-local Player = require("./Player")
+local Control = require("@game/ReplicatedStorage/CraftsmanPackages/CraftsmanControl")
+local Ledger = require("@game/ReplicatedStorage/CraftsmanPackages/Ledger")
+local Player = require("@game/ReplicatedStorage/Features/Player/Definitions")
 
 Control.Store({ Entity = Player.Profile, Ledger = Ledger })
 
@@ -281,12 +361,12 @@ return Control
 Luau Execution session, which loads the place without running its Scripts. A
 store opened by a Script works in the game but is invisible to the console.
 If you have no entity declared yet, keep the module and let it only return
-`Control`, because step 6 requires it.
+`Control`, as `init` writes it, because step 7 requires it.
 
-**5. Save the game key in Roblox's Secrets Store.** The console shows it once,
+**6. Save the game key in Roblox's Secrets Store.** The console shows it once,
 under Settings → Universes. On the Creator Hub, open the experience's
 **Secrets** page and add it as **`CRAFTSMAN_CONTROL`**. The framework reads no
-fixed name: your game passes this one to `HttpService:GetSecret` in step 6, and
+fixed name: your game passes this one to `HttpService:GetSecret` in step 7, and
 every console screen uses it. Two traps, both silent:
 
 - Set the secret's **domain** to `operations.craftsman.systems`. With any other
@@ -295,15 +375,15 @@ every console screen uses it. Two traps, both silent:
   Team Test or a live server, or add the same value in Studio under
   File → Experience Settings → Security → Local Secrets.
 
-**6. Start the runtime** from a **Script** under `ServerScriptService`. Put it
-inside `ServerScriptService/Craftsman` if your code builds it (step 7), because
-a build replaces only what `ownedPaths` names:
+**7. Start the runtime** from a **Script** inside `ServerScriptService.Craftsman`
+(`src/Start.server.luau`, which `init` writes), because a build replaces only
+what the place owns:
 
 ```lua
 local HttpService = game:GetService("HttpService")
 
 local Control = require("@game/ServerScriptService/Craftsman/Control/Stores")
-local Definitions = require("@game/ServerScriptService/Craftsman/Control/Definitions")
+local Definitions = require("@game/ReplicatedStorage/Craftsman/Definitions")
 
 Control.Reporter.Start({
 	declaration = Definitions,
@@ -320,7 +400,9 @@ local Runtime: Control.Runtime = Control.Start(Definitions, {
 
 Register any `Control.OnCommand` handlers before `Control.Start`. The Overview's
 setup checklist ticks off *A server has reported* when the first report gets
-through.
+through. `init` also writes `src/Bootstrap.server.luau` and
+`src/Bootstrap.client.luau`, which start the kit's state machine and load your
+`Handler`s and `Controller`s with Lifecycle.
 
 The code that runs a feature reads it through the module that declared it. A
 feature is started and stopped by the runtime, possibly many times in one
@@ -329,7 +411,7 @@ connects goes through the Keeper it is handed, which is cleaned when the feature
 switches off. A config is read with a colon:
 
 ```lua
-local Shop = require("@game/ServerScriptService/Craftsman/Control/Shop")
+local Shop = require("@game/ReplicatedStorage/Features/Shop/Definitions")
 
 Shop:OnActivate(function(keeper)
 	local stand = keeper:Clone(ShopStand)
@@ -354,12 +436,11 @@ end)
 
 **Features on the client.** A feature declared `Client = true` also runs on
 clients, and a config a client reads must be `Shared = true`. A client can only
-require a module it can see, so declare such a feature in a module under
-`ReplicatedStorage` (in `craftsman init`'s layout, the feature's
-`Definitions.luau`), still listed in `Includes` and inside a folder
-`ownedPaths` names (step 7). Then a LocalScript requires it and starts the
-client runtime once. Without that call a client feature never runs on a client,
-with no error:
+require a module it can see, so its declaration must be under
+`ReplicatedStorage`, as a feature's `Definitions.luau` is. `init`'s client
+bootstrap requires `ReplicatedStorage.Craftsman.Definitions` and calls
+`Control.StartClient()` once. Without that call a client feature never runs on a
+client, with no error:
 
 ```lua
 local Client: Control.ClientRuntime = Control.StartClient()
@@ -373,33 +454,45 @@ Every feature and config name in a client-readable module can be read by
 players, so nothing secret belongs in a name; an unshared config's value never
 leaves the server.
 
-**7. Describe the place.** A release is your Studio place with your code laid
-over it. `places/<role>.place.json` says how to build one. The file name is the
-place's role, e.g. `places/main.place.json` for the role `main`:
+**8. Describe the place.** A release is your Studio place with your code laid
+over it. A `[places.<role>]` table in `craftsman.toml` says how to build one,
+e.g. `[places.main]` for the role `main`. `craftsman init --place <placeId>`
+writes it, and with `init`'s layout the two ids are all it needs:
 
-```json
-{
-  "universeId": 10202097921,
-  "placeId": 123021532395166,
-  "source": "studio-download",
-  "baseline": "places/main.rbxl",
-  "overlayProject": "default.project.json",
-  "definitions": "src/Control/Definitions",
-  "ownedPaths": ["ReplicatedStorage/Packages", "ServerScriptService/Craftsman"]
-}
+```toml
+[places.main]
+universe = 10202097921
+place = 123021532395166
 ```
 
-| Field | What it is for |
-|---|---|
-| `universeId`, `placeId` | The place this file builds. The universe must be one the declaration names. |
-| `source` | Where the Studio place comes from. `"studio-download"` is a place file you commit. `"control"` is the Studio place Project Control holds, handed to the build, with no `baseline`. |
-| `baseline` | For `"studio-download"` only: the committed `.rbxl` (File → Download a Copy in Studio). Track it with Git LFS: `*.rbxl filter=lfs diff=lfs merge=lfs -text` in `.gitattributes`. |
-| `overlayProject` | The Rojo project that builds your code. It may map only inside `ownedPaths`, or the build stops. |
-| `definitions` | The declaration's path in the repository, without `.luau`. |
-| `ownedPaths` | The folders your code owns. The build replaces them and proves nothing outside them changed. Include `ServerScriptService/Craftsman`, because the check that the `Stores` module exists runs only when it is owned. |
+| Key | Default | What it is for |
+|---|---|---|
+| `universe`, `place` | required | The place this builds. The universe must be one the declaration names. |
+| `source` | `"control"` | Where the Studio place comes from. `"control"` is the Studio place Project Control holds, handed to the build. `"studio-download"` is a place file you commit. |
+| `baseline` | none | For `"studio-download"` only: the committed `.rbxl` (File → Download a Copy in Studio). Track it with Git LFS: `*.rbxl filter=lfs diff=lfs merge=lfs -text` in `.gitattributes`. |
+| `overlay` | `release.project.json` | The Rojo project that builds your code. It may map only inside what the place owns, or the build stops. |
+| `definitions` | `src/Control/Definitions` | The declaration's path in the repository, without `.luau`. |
+| `owned` | none | Folders your code owns beyond what the overlay maps. |
 
-An overlay project for this example maps `Packages` and the `Craftsman` folder,
-and nothing else:
+The build replaces what the place owns and proves nothing outside it changed.
+With a generated overlay, the place owns everything `release.project.json`
+maps, `CraftsmanPackages` and `CraftsmanDevPackages` included, so `owned` is
+only for something it does not. With a Rojo project of your own, nothing is
+derived and `owned` lists every folder. Include `ServerScriptService/Craftsman`,
+because the check that the `Stores` module exists runs only when it is owned:
+
+```toml
+[places.main]
+universe = 10202097921
+place = 123021532395166
+source = "studio-download"
+baseline = "places/main.rbxl"
+overlay = "game.project.json"
+owned = ["ReplicatedStorage/CraftsmanPackages", "ReplicatedStorage/Craftsman", "ServerScriptService/Craftsman"]
+```
+
+An overlay project for this example maps the packages, the declaration and the
+`Craftsman` folder, and nothing else:
 
 ```json
 {
@@ -407,7 +500,11 @@ and nothing else:
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {
-      "Packages": { "$path": "Packages" }
+      "CraftsmanPackages": { "$path": "CraftsmanPackages" },
+      "Craftsman": {
+        "$className": "Folder",
+        "Definitions": { "$path": "src/Control/Definitions.luau" }
+      }
     },
     "ServerScriptService": {
       "Craftsman": {
@@ -420,16 +517,10 @@ and nothing else:
 }
 ```
 
-`craftsman release places/main.place.json` builds it on your machine and sends
-nothing, which is a quick check of this step.
-
-**8. Sign in**, once per machine. Link GitHub on the console's Account page
-(`https://operations.craftsman.systems/account`) and have an administrator
-attach it to the project. Then run:
-
-```sh
-craftsman login
-```
+`craftsman release main` builds it on your machine and sends nothing, which is
+a quick check of this step. A project from before this keeps its places in
+`places/<role>.place.json`: `craftsman install` moves each one into
+`craftsman.toml` and deletes it.
 
 **9. Publish:**
 
@@ -443,20 +534,27 @@ group when it is deployed there, from the console's Releases. `craftsman help`
 lists every command, and `craftsman <command> --help` shows its options and
 examples.
 
-## Agent skill
+## Agent skills
 
-`skills/setup-project/` is an [Agent Skill](https://agentskills.io) that sets
-a game repository up for Project Control: it does every step of
-[Integrate into your game](#integrate-into-your-game) that a terminal can, and
-hands you a checklist for the ones that need the console or the Creator Hub.
-It never asks for or handles the game key or an Open Cloud key.
+Two [Agent Skills](https://agentskills.io) live in `skills/`:
+
+- **`setup-project`** sets a game repository up for Project Control: it does
+  every step of [Integrate into your game](#integrate-into-your-game) that a
+  terminal can, and hands you a checklist for the ones that need the console or
+  the Creator Hub. It never asks for or handles the game key or an Open Cloud
+  key. Ask the agent to set up Project Control; its steps are numbered like the
+  console's guide at `https://operations.craftsman.systems/onboard`.
+- **`craftsman-control`** teaches an agent writing game code what Project
+  Control already provides (features and configs, commands and `Control.Run`,
+  entities and stores, the store and receipts, the CLI) and how to call it, so
+  it declares through Control instead of hand-rolling a flag, an admin command,
+  a DataStore wrapper or a receipt handler the console cannot see.
+
+Install them with:
 
 - **Any agent, via the skills CLI:** `npx skills add averyark/craftsman-cli`
-- **Manually:** copy `skills/setup-project` into `.claude/skills/` (Claude Code)
-  or `.agents/skills/` (Codex and others).
-
-Then ask the agent to set up Project Control. Its steps are numbered like the
-console's guide at `https://operations.craftsman.systems/onboard`.
+- **Manually:** copy the folders under `skills/` into `.agents/skills/`, then
+  run `craftsman skills` to mirror them into `.claude/skills/` for Claude Code.
 
 ## Exit codes
 
@@ -473,10 +571,13 @@ run exits 3, never 0. An error from Project Control itself (a 5xx answer) exits
 
 ## Release workflow
 
-Copy [`templates/release.yml`](templates/release.yml) to `.github/workflows/release.yml`.
-A project with an `ember.toml` must commit `ember.lock`, and should install
-Ember outside `Packages/` (see the
-[Craftsman Kit README](https://github.com/averyark/craftsman-kit#alongside-wally)).
+`craftsman init` writes [`templates/release.yml`](templates/release.yml) to
+`.github/workflows/release.yml`; without `init`, copy it there. Its `prepare`
+job downloads exactly the packages `craftsman.lock` names, with the run's OIDC
+token, and `build` installs them offline with `craftsman install --frozen`, so
+the build holds no token. A workflow from CLI 0.10.0 or before cannot read
+today's lock: replace it with the template when you move to 0.10.1 or later.
+A project with an `ember.toml` must commit `ember.lock`.
 
 ## Which console
 
