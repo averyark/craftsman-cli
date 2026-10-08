@@ -10,7 +10,7 @@ The source is developed with the `craftsman-control` framework.
 With [Rokit](https://github.com/rojo-rbx/rokit), from your project's folder:
 
 ```sh
-rokit add averyark/craftsman-cli@0.10.2 craftsman
+rokit add averyark/craftsman-cli@0.11.0 craftsman
 ```
 
 The last argument names the command. Without it, Rokit names the command after
@@ -18,7 +18,7 @@ the repository, `craftsman-cli`. The same thing as a line in `rokit.toml`:
 
 ```toml
 [tools]
-craftsman = "averyark/craftsman-cli@0.10.2"
+craftsman = "averyark/craftsman-cli@0.11.0"
 ```
 
 Then run `rokit install`. Builds exist for Windows x86_64, Linux x86_64 and
@@ -78,7 +78,7 @@ names, and that Control is the CLI's version.
   `craftsman.toml`, and installs the packages. It lists anything it cannot
   change safely.
 - **A game on CLI 0.9 or 0.10.0**, whose `craftsman.lock` names one bundle:
-  move the `rokit.toml` pin to 0.10.2, run `rokit install` and
+  move the `rokit.toml` pin to 0.11.0, run `rokit install` and
   `craftsman update`, and replace `.github/workflows/release.yml` with
   [`templates/release.yml`](templates/release.yml): the old workflow cannot read
   the new lock. Commit `craftsman.lock`, `craftsman.toml`, `rokit.toml` and the
@@ -262,7 +262,7 @@ most of steps 4 to 8 for you; the steps say what it wrote, so you can check it.
 your project's folder:
 
 ```sh
-rokit add averyark/craftsman-cli@0.10.2 craftsman
+rokit add averyark/craftsman-cli@0.11.0 craftsman
 rokit add rojo-rbx/rojo
 ```
 

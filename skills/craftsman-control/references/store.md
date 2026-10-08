@@ -26,8 +26,9 @@ is no `Control.Catalogue` any more.
 - An item is created in **every universe of `craftsman.toml`'s `[places]`**,
   with its own id in each. A write in a universe holding a protected place
   group waits for a passkey in the browser.
-- **A key is what the game names**: lowercase letters, digits, dots and
-  underscores, at most 59 bytes. `Assets.Passes.vip`, `Commerce.Owns(player, "vip")`.
+- **A key is what the game names**: letters in any case, digits, dots and
+  underscores (`^[A-Za-z0-9._]+$`), at most 59 bytes, and case-sensitive.
+  `Assets.Passes.vip`, `Commerce.Owns(player, "vip")`.
 - **A gift is a product keyed `<key>.gift`**, the gift of pass `<key>` (or of
   product `<key>` when there is no such pass). Its existing is what makes the
   item giftable. Its id is `Assets.Gifts.<key>` (never under `Products`). To
