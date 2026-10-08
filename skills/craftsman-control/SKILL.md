@@ -62,7 +62,8 @@ local gt = Control.GreenTea
 | Open that data store and write to it | `Control.Store({ Entity, Ledger })` in the `Stores` ModuleScript; `store.Load` / `Apply` / `Edit` | [entities](references/entities.md) |
 | Stream a player's data to clients | `Control.Replicate(store, share)` on the server, `Control.Replica(entity)` on the client | [entities](references/entities.md) |
 | A matchmaking pool, leaderboard or queue in MemoryStore | `:Entity({ Memory = { Structure = "SortedMap" \| "Queue", Name } })` | [entities](references/entities.md) |
-| Game passes, developer products, subscriptions, gifts, refunds | `Control.Catalogue` in `Declare({ Store = ... })` + `Control.Commerce` | [store](references/store.md) |
+| Game passes, developer products, subscriptions, gifts, refunds | `craftsman store add` (ids in `Assets`), `Receipts` in `Declare`, `Control.Commerce` | [store](references/store.md) |
+| An animation, sound, image or video id | `craftsman asset add`, then `Assets.Animations.<Name>` from `ReplicatedStorage.Craftsman.Assets`; never a raw `rbxassetid://` | [cli](references/cli.md) |
 | "Does the player own the pass?" | `Control.Commerce.Owns(player, key)`, never `UserOwnsGamePassAsync` | [store](references/store.md) |
 | Publish, build, test in Roblox, regenerate declarations | `craftsman publish`, `craftsman test-roblox`, `craftsman project` | [cli](references/cli.md) |
 
