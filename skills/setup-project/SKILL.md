@@ -4,7 +4,7 @@ license: MIT
 metadata:
   author: averyark
   repository: craftsman-cli
-  cli-version: "0.11.0"
+  cli-version: "0.11.1"
 description: Set up Project Control in a Roblox game repository, end to end - install the craftsman CLI and Rojo, install Craftsman's packages (Control, the kit, Lifecycle and their deps) from Project Control's registry with craftsman init, write the Definitions and Stores ModuleScripts and the start Script, describe the place, add the release workflow, sign in, publish, and add the signing key - while handing the person an exact checklist for the steps that need their browser, passkey or Roblox's Creator Hub. Use when the user asks to set up, onboard, integrate, connect or install Project Control, craftsman-control or the craftsman CLI in their game, follows operations.craftsman.systems/onboard, or has a half-finished setup that fails to publish or report. Also use to check an existing setup for the traps that fail silently.
 ---
 
@@ -125,14 +125,14 @@ If `rokit` itself is missing, stop and ask the person to install it
 Otherwise add only what `rokit.toml` lacks:
 
 ```bash
-rokit add averyark/craftsman-cli@0.11.0 craftsman
+rokit add averyark/craftsman-cli@0.11.1 craftsman
 rokit add rojo-rbx/rojo
 ```
 
 The last word of the first line names the command `craftsman`. Wally is not
 needed for Craftsman, which never comes from Wally; keep `UpliftGames/wally`
 only when the game installs packages of its own with it. An older `craftsman`
-pin moves to 0.11.0, then `rokit install`, and step 8 runs `craftsman update`.
+pin moves to 0.11.1, then `rokit install`, and step 8 runs `craftsman update`.
 If the game uses framework 0.1.x (`Control.Flag`, `:Flags`,
 `Control.FlagService`), stop and tell the person: moving it is a migration, not
 a pin bump, and follows "Upgrading older declarations" in this repository's

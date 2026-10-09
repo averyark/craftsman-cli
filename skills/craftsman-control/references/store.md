@@ -21,7 +21,7 @@ is no `Control.Catalogue` any more.
 | `craftsman store gift <key>` | Makes the product `<key>.gift`, the gift of `<key>`; it takes its own price and for-sale, defaulting to `<key>`'s |
 | `craftsman store rollback <key>` | Puts a history entry's fields back in every universe |
 | `craftsman store push` | Creates drafts in the universes that lack them, and sends what was edited in `assets/index.toml` by hand |
-| `craftsman store import` | Adopts passes and products Roblox already lists, matched by name, and subscriptions by their `EXP-…` id |
+| `craftsman store import` | Adopts passes and products Roblox already lists, matched by name, and subscriptions by their `EXP-…` id. Asks each new key, or takes `--key "<name or id>=<key>"` (repeatable); the default is the key Project Control already holds, and a 0.10 gift product (`<Name> (Gift)`) comes in as `<key>.gift`. Needs `game-pass:read` and `developer-product:read` on each universe's key, and exits 1 naming them when they are missing |
 | `craftsman store list` / `status` | `status` exits 1 on a draft, a hand edit not yet pushed (*edited locally — push to apply*), a missing icon or a stale module |
 
 - An item is created in **every universe of `craftsman.toml`'s `[places]`**,
