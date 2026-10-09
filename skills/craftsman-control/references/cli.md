@@ -20,7 +20,7 @@ options.
 | `craftsman test-roblox [<role>]` | Run the `verify/` Jest specs on a real Roblox server against this checkout. No commit, no release |
 | `craftsman asset add [paths…]` | Add animations, audio, images (png/jpg/bmp/tga ≤ 8000², recorded as the image id under `Assets.Images`; needs a download key) and videos: copies them into `assets/`, uploads once per owner (or saves drafts, the default), writes `src/Control/Assets.luau`. Also `replace <name>`, `import <id>`, `rollback <name>`, `push`, `list` |
 | `craftsman asset status` | CI gate: exit 1 on drafts, changed files, anything not yet approved, a key renamed by hand and not yet pushed, a stale module. `asset push` applies such a rename on Roblox |
-| `craftsman store <add\|edit\|import\|rollback\|push\|list\|status>` | Passes, products (and their `.gift` products) and subscriptions in every universe; see [store](store.md) |
+| `craftsman store <add\|edit\|gift\|import\|rollback\|push\|list\|status>` | Passes, products (and their `.gift` products) and subscriptions in every universe; see [store](store.md) |
 | `craftsman asset` / `craftsman store` | No action, in a terminal: a browser of the index (kinds, entries, actions such as Copy path and Rename, which can rewrite references under `src/`) |
 | `craftsman init --place <id>` | Install the packages and write the files a feature-routed game needs. Never overwrites |
 | `craftsman feature <Name> "<description>"` | Add a feature's folder, its `Definitions.luau` and its entry in `Includes` |

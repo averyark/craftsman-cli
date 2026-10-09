@@ -18,6 +18,7 @@ is no `Control.Catalogue` any more.
 |---|---|
 | `craftsman store add` | Asks pass or product, name, key, description, price, for sale, icon (drag a PNG/JPEG), a product's refund policy, and "Also create a gift product?". Then **Create now / Save as draft (default) / Cancel** |
 | `craftsman store edit <key>` | Changes fields; sends only what changed to every universe |
+| `craftsman store gift <key>` | Makes the product `<key>.gift`, the gift of `<key>`; it takes its own price and for-sale, defaulting to `<key>`'s |
 | `craftsman store rollback <key>` | Puts a history entry's fields back in every universe |
 | `craftsman store push` | Creates drafts in the universes that lack them, and sends what was edited in `assets/index.toml` by hand |
 | `craftsman store import` | Adopts passes and products Roblox already lists, matched by name, and subscriptions by their `EXP-…` id |
@@ -45,7 +46,7 @@ is no `Control.Catalogue` any more.
   `publish` refuse a module that is not what the index generates; run
   `craftsman project`. A draft is absent from the module, so code naming it
   does not type-check.
-- Ask before `store add`, `edit`, `rollback`, `push` or `import` without
+- Ask before `store add`, `edit`, `gift`, `rollback`, `push` or `import` without
   `--dry-run`: they write to Roblox, and passes and products are never deleted.
 
 ## Declaring receipts

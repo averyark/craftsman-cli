@@ -136,8 +136,8 @@ file that uses it, with `<scope>:Declare(name, spec)` (`craftsman-control`'s
 | `craftsman publish` | Checks the declaration's manifest with Project Control and builds a release |
 | `craftsman status` | Says what Project Control has for this project: places, releases, the session |
 | `craftsman asset <add\|replace\|import\|rollback\|push\|list\|status>` | Adds animations, audio, images (`Assets.Images`, the image id, never the decal; needs the universe's download key) and videos to `assets/index.toml`, uploads them once per owner, and writes `src/Control/Assets.luau`. `status` is a CI gate |
-| `craftsman store <add\|edit\|import\|rollback\|push\|list\|status>` | Creates, changes and adopts game passes, developer products (with an optional gift product) and subscriptions in every universe of `[places]` |
-| `craftsman asset` / `craftsman store` | With no action, in a terminal: browse the index by kind and entry, then copy an entry's `Assets.…` path, rename, replace, push, roll back or edit it |
+| `craftsman store <add\|edit\|gift\|import\|rollback\|push\|list\|status>` | Creates, changes and adopts game passes, developer products (with an optional gift product) and subscriptions in every universe of `[places]`. `gift <key>` makes the product `<key>.gift`, the gift of `<key>`, which takes its own price and for-sale, defaulting to `<key>`'s |
+| `craftsman asset` / `craftsman store` | With no action, in a terminal: browse the index by kind and entry, then copy an entry's `Assets.…` path, rename, replace, push, roll back or edit it, or create a store item's gift |
 | `craftsman release [<role>]` | Builds a release candidate place file and its report |
 | `craftsman test-roblox [<role>]` | Builds this checkout and runs `verify/` against it in Roblox |
 | `craftsman login` | Signs this machine in to Project Control with GitHub |
