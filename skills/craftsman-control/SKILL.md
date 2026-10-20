@@ -5,8 +5,8 @@ license: MIT
 metadata:
   author: averyark
   repository: craftsman-cli
-  framework-version: "0.11.3"
-  cli-version: "0.11.3"
+  framework-version: "0.11.4"
+  cli-version: "0.11.4"
 ---
 
 # Craftsman Control

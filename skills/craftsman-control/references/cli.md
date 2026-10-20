@@ -1,6 +1,6 @@
 # The craftsman CLI
 
-Installed per project with Rokit (`craftsman = "averyark/craftsman-cli@0.11.3"`).
+Installed per project with Rokit (`craftsman = "averyark/craftsman-cli@0.11.4"`).
 It loads the framework from the project's own `CraftsmanPackages/`, so
 `craftsman install` must have run. `craftsman help <command>` lists a command's
 options.
