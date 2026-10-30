@@ -1,6 +1,6 @@
 # The craftsman CLI
 
-Installed per project with Rokit (`craftsman = "averyark/craftsman-cli@0.11.6"`).
+Installed per project with Rokit (`craftsman = "averyark/craftsman-cli@0.11.7"`).
 It loads the framework from the project's own `CraftsmanPackages/`, so
 `craftsman install` must have run. `craftsman help <command>` lists a command's
 options.
@@ -41,8 +41,8 @@ options.
 - **Preview before `--apply`, and ask before `--apply`, `--activate`, a commit
   or a push.** `--apply` builds from the pushed branch, so uncommitted work is
   not in it.
-- `craftsman login` waits on GitHub's device flow: ask the person to run it
-  (`! craftsman login` in Claude Code). `craftsman whoami` shows whether this
+- `craftsman login` waits for the person's passkey in the browser: ask them to
+  run it on their own computer (`! craftsman login` in Claude Code). `craftsman whoami` shows whether this
   machine is signed in and to which projects.
 - After editing any `:Declare` call or a feature folder, run
   `craftsman project` and include the regenerated files in the change.

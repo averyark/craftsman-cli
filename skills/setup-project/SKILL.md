@@ -4,7 +4,7 @@ license: MIT
 metadata:
   author: averyark
   repository: craftsman-cli
-  cli-version: "0.11.6"
+  cli-version: "0.11.7"
 description: Set up Project Control in a Roblox game repository, end to end - install the craftsman CLI and Rojo, install Craftsman's packages (Control, the kit, Lifecycle and their deps) from Project Control's registry with craftsman init, write the Definitions and Stores ModuleScripts and the start Script, describe the place, add the release workflow, sign in, publish, and add the signing key - while handing the person an exact checklist for the steps that need their browser, passkey or Roblox's Creator Hub. Use when the user asks to set up, onboard, integrate, connect or install Project Control, craftsman-control or the craftsman CLI in their game, follows operations.craftsman.systems/onboard, or has a half-finished setup that fails to publish or report. Also use to check an existing setup for the traps that fail silently.
 ---
 
@@ -52,9 +52,9 @@ craftsman doctor --offline
   how to fix each, reading only. A `craftsman.lock` that names a *bundle*, or a
   `wally.toml` naming `averyark/craftsman-control`, `-kit` or `-lifecycle`, is
   an older game: step 8 moves it with `craftsman update`.
-- `craftsman whoami` names the person and the projects their GitHub account is
-  attached to. *Not signed in* means step 15 is left, and the project missing
-  from that list means step 14 is.
+- `craftsman whoami` names the person and the projects they are on. *Not signed
+  in* means step 15 is left, and the project missing from that list means step
+  14 is.
 - Find the Rojo project that builds the game (`base.project.json` with
   `init`'s layout, else usually `default.project.json`) and read where it maps
   `ReplicatedStorage`, `ServerScriptService` and `CraftsmanPackages`.
@@ -80,8 +80,10 @@ These need a browser, a passkey or the Creator Hub, so no agent can do them.
 Give them as one checklist **now**, so the person works through it while you
 wire the repository, and only mark the ones the survey could not prove done:
 
-1. Create an account at `https://operations.craftsman.systems/signup`.
-2. Accept the project invitation on the Projects page.
+1. Ask Craftsman Staff for a signup link, which is made for your Discord
+   username, and create your account with it.
+2. Ask Craftsman Staff to add you to the project; it then shows on the Projects
+   page.
 3. **Settings → Universes**: add universe `<universeId>`, the universe ID and
    not a place ID.
 4. Save an Open Cloud key on it and press **Test** until it passes. The key
@@ -96,12 +98,9 @@ wire the repository, and only mark the ones the survey could not prove done:
 6. **Settings → Places**: map place `<placeId>` to the default place group.
 13. **Settings → Releases**: name the repository, `<owner>/<repository>` from
     `git remote get-url origin`.
-14. On the **Account** page: **Link a GitHub account** (the one this browser
-    uses on GitHub, which is also the one `craftsman login` will use), then
-    **Confirm with a passkey**. Under the account, choose the project and
-    **Request attachment**; it shows *Waiting*. Another administrator approves
-    it in **Approvals** and it shows *Attached*; the project's only
-    administrator approves their own. Linking alone gives no access.
+14. Check the project is on your **Projects** page. If it is not, ask Craftsman
+    Staff to add you to it: `craftsman login` signs you in as yourself, and you
+    can use the CLI only on projects you are on.
 
 Three of these fail without an error, so say them plainly: a secret whose
 domain does not cover `operations.craftsman.systems` is read fine and every
@@ -115,7 +114,7 @@ not check it.
 
 **Steps 14 and 15 come before step 8.** Installing Craftsman downloads its
 packages from Project Control's registry, which needs `craftsman login` and a
-GitHub account attached to the project. Do step 7, then have the person finish
+place on the project. Do step 7, then have the person finish
 14 and run 15 (below), then step 8.
 
 ### Step 7: tools
@@ -125,14 +124,14 @@ If `rokit` itself is missing, stop and ask the person to install it
 Otherwise add only what `rokit.toml` lacks:
 
 ```bash
-rokit add averyark/craftsman-cli@0.11.6 craftsman
+rokit add averyark/craftsman-cli@0.11.7 craftsman
 rokit add rojo-rbx/rojo
 ```
 
 The last word of the first line names the command `craftsman`. Wally is not
 needed for Craftsman, which never comes from Wally; keep `UpliftGames/wally`
 only when the game installs packages of its own with it. An older `craftsman`
-pin moves to 0.11.6, then `rokit install`, and step 8 runs `craftsman update`.
+pin moves to 0.11.7, then `rokit install`, and step 8 runs `craftsman update`.
 If the game uses framework 0.1.x (`Control.Flag`, `:Flags`,
 `Control.FlagService`), stop and tell the person: moving it is a migration, not
 a pin bump, and follows "Upgrading older declarations" in this repository's
@@ -363,17 +362,16 @@ replace it with this template whenever the game moves to 0.10.1 or later.
 
 ### Step 15: sign in
 
-Done before step 8 (see *Wire the repository*). `craftsman login` runs GitHub's
-device flow and waits for the person, so ask them to run it themselves (in
-Claude Code: `! craftsman login`). Then check:
+Done before step 8 (see *Wire the repository*). `craftsman login` opens the
+console and waits for the person's passkey, so ask them to run it themselves on
+their own computer (in Claude Code: `! craftsman login`). Then check:
 
 ```bash
 craftsman whoami
 ```
 
-The project must be in its list. If it says the account is attached to no
-project, step 14's attachment is not approved yet: it shows *Waiting* on the
-Account page until an administrator approves it in Approvals.
+The project must be in its list. If it is not, step 14 is left: Craftsman Staff
+add the person to the project.
 
 ### Step 16: publish
 
@@ -400,8 +398,8 @@ activates nothing**; a release goes live when it is deployed from the console.
 | 2 | The command line or configuration is wrong; nothing was sent | Fix the option or the declaration path, or run `craftsman install` / `craftsman update` when Craftsman is missing or its Control is another version |
 | 3 | Could not tell (unreachable, a 5xx, no verdict) | Not about the change; try again later |
 
-A refusal that names the Account page ends with its address: it is step 14's
-attachment.
+A refusal that names the Account page ends with its address: the session was
+revoked there, so sign in again with step 15.
 
 ### Step 17: signing key
 

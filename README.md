@@ -10,7 +10,7 @@ The source is developed with the `craftsman-control` framework.
 With [Rokit](https://github.com/rojo-rbx/rokit), from your project's folder:
 
 ```sh
-rokit add averyark/craftsman-cli@0.11.6 craftsman
+rokit add averyark/craftsman-cli@0.11.7 craftsman
 ```
 
 The last argument names the command. Without it, Rokit names the command after
@@ -18,7 +18,7 @@ the repository, `craftsman-cli`. The same thing as a line in `rokit.toml`:
 
 ```toml
 [tools]
-craftsman = "averyark/craftsman-cli@0.11.6"
+craftsman = "averyark/craftsman-cli@0.11.7"
 ```
 
 Then run `rokit install`. Builds exist for Windows x86_64, Linux x86_64 and
@@ -59,7 +59,7 @@ anything is written.
   `update` prints the `rokit.toml` line that would run it, and never edits the
   file itself.
 
-Downloading needs `craftsman login` and a GitHub account attached to a project
+Downloading needs `craftsman login` as somebody on a project
 (see [Signing in](#signing-in)), or in GitHub Actions the run's OIDC token from
 a repository bound to a project, which the release workflow template uses.
 
@@ -78,7 +78,7 @@ names, and that Control is the CLI's version.
   `craftsman.toml`, and installs the packages. It lists anything it cannot
   change safely.
 - **A game on CLI 0.9 or 0.10.0**, whose `craftsman.lock` names one bundle:
-  move the `rokit.toml` pin to 0.11.6, run `rokit install` and
+  move the `rokit.toml` pin to 0.11.7, run `rokit install` and
   `craftsman update`, and replace `.github/workflows/release.yml` with
   [`templates/release.yml`](templates/release.yml): the old workflow cannot read
   the new lock. Commit `craftsman.lock`, `craftsman.toml`, `rokit.toml` and the
@@ -140,7 +140,7 @@ file that uses it, with `<scope>:Declare(name, spec)` (`craftsman-control`'s
 | `craftsman asset` / `craftsman store` | With no action, in a terminal: browse the index by kind and entry, then copy an entry's `Assets.…` path, rename, replace, push, roll back or edit it, or create a store item's gift |
 | `craftsman release [<role>]` | Builds a release candidate place file and its report |
 | `craftsman test-roblox [<role>]` | Builds this checkout and runs `verify/` against it in Roblox |
-| `craftsman login` | Signs this machine in to Project Control with GitHub |
+| `craftsman login` | Signs this machine in to Project Control with your passkey |
 | `craftsman logout` | Signs this machine out and forgets its session |
 | `craftsman whoami` | Says who this machine is signed in as, until when, and in which projects |
 | `craftsman summary [<dir>]` | Prints the release reports in `<dir>` (default `dist`) as Markdown |
@@ -262,7 +262,7 @@ most of steps 4 to 8 for you; the steps say what it wrote, so you can check it.
 your project's folder:
 
 ```sh
-rokit add averyark/craftsman-cli@0.11.6 craftsman
+rokit add averyark/craftsman-cli@0.11.7 craftsman
 rokit add rojo-rbx/rojo
 ```
 
@@ -270,10 +270,9 @@ The last argument of the first line names the command `craftsman`. Add
 `UpliftGames/wally` only if the game installs packages of its own with Wally;
 Craftsman itself never comes from Wally.
 
-**2. Sign in**, once per machine, because downloading Craftsman needs it. Link
-GitHub on the console's Account page
-(`https://operations.craftsman.systems/account`) and have an administrator
-attach it to the project. Then run:
+**2. Sign in**, once per machine, because downloading Craftsman needs it. You
+need a console account with a passkey, on the project; Craftsman Staff add you
+to it. Then run:
 
 ```sh
 craftsman login
@@ -594,11 +593,9 @@ cannot send your session somewhere else. To reach another host, set
 
 ## Signing in
 
-`craftsman login` signs in with GitHub's device flow: it prints a code and a
-link, and you enter the code on GitHub. First link your GitHub account on the
-console's Account page (`https://operations.craftsman.systems/account`), or
-Project Control will not know who you are; a refusal that names the page prints
-its address. The
+`craftsman login` opens the console in your browser, and you confirm with your
+passkey. The browser must be on the same computer; over SSH, forward the port it
+prints. Nothing about your machine is sent or stored. The
 session is stored at `~/.craftsman/session`, one per `CONTROL_ENDPOINT`.
 `craftsman whoami` shows it and `craftsman logout` ends it. The first line every
 command prints names the console it is talking to, and whether that console is
