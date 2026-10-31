@@ -57,7 +57,7 @@ return Profile:Reducers(Reducers)
 | `Store = { Name = "..." }` | The DataStore. The name is also what the console lists, so a mismatch with what the game really writes reads as an empty store, silently |
 | `KeyedBy` | `"Player"` (keyed by UserId, with sessions) or `"String"` (any key, written by key) |
 | `State` | `gt.build(gt.table({...}))`: the whole shape. The console's editor, params and revert are derived from it |
-| `Default` | The document a new key starts from. Required for reducers |
+| `Default` | The document a new key starts from. Required on a ledger entity. A memorystore entity without one is read-only: no reducers, and `Control.Store` refuses it |
 | `Shared` | Fields other players may receive through replication |
 | `Owner` | Fields the owner receives; without it they receive every field not starting `_` |
 | `Migrations` | Save-data migrations. They belong here, never on `Control.Store` |
@@ -136,8 +136,10 @@ end)
   means it may have landed: never retry a grant on it blindly.
 - **A console edit lands in the DataStore**, and a server holding that player's
   session sees it only at the session's next save. Call
-  `profiles.Session(player):Flush():Wait()` when told an edit landed
-  (`OnApplied`, or a MessagingService nudge) to read it back.
+  `profiles.Session(player):Flush():Wait()` when told an edit landed. `OnApplied`
+  fires in the process that wrote, and a console edit runs in a Luau Execution
+  session rather than the live server, so use it to publish a MessagingService
+  nudge that the live server listens for.
 
 ## Replicating to clients
 
@@ -201,8 +203,8 @@ Control.Store({
 ```
 
 - No hash maps (Open Cloud cannot read them). No history, so no revert.
-- A sorted-map key is at most 127 characters. A queue reducer takes no key and
-  must be `.Irreversible()`.
+- A sorted-map key is at most 127 characters. A queue reducer takes no key, and
+  must be `.Irreversible()` when it is exposed as an operation.
 - Reading a queue from the console hides its items from the game for a while,
   so the console treats it as an operation, never a browse.
 - MemoryStore entities do not replicate.

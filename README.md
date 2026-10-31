@@ -537,14 +537,17 @@ examples.
 
 ## Agent skills
 
-Two [Agent Skills](https://agentskills.io) live in `skills/`:
+Three [Agent Skills](https://agentskills.io) live in `skills/`:
 
 - **`setup-project`** sets a game repository up for Project Control: it does
   every step of [Integrate into your game](#integrate-into-your-game) that a
   terminal can, and hands you a checklist for the ones that need the console or
   the Creator Hub. It never asks for or handles the game key or an Open Cloud
-  key. Ask the agent to set up Project Control; its steps are numbered like the
-  console's guide at `https://operations.craftsman.systems/onboard`.
+  key. Ask the agent to set up Project Control.
+- **`craftsman-capabilities`** helps an agent plan a whole system on Project
+  Control: which capability fits, what each costs a person at run time, and what
+  fails silently, across command tiers and delivery, live brakes, migrations,
+  MemoryStore, in-Roblox tests and shipping.
 - **`craftsman-control`** teaches an agent writing game code what Project
   Control already provides (features and configs, commands and `Control.Run`,
   entities and stores, the store and receipts, the CLI) and how to call it, so

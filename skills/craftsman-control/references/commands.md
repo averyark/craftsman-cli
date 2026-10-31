@@ -39,12 +39,16 @@ Placed under `Control.Scope("Player"):Scopes({ Kick = Kick })`, the keys are
 - **An impact is required**: `.NoImpact()`, or `.Grants(param)`,
   `.Transfers(param)`, `.Prices(param?)` when it hands out value. Without one
   the declaration errors.
-- `.Handles(fn)` ends the chain and registers the handler. `.Declared()` ends it
-  with no handler, for a command handled elsewhere.
+- `.Handles(fn)` ends the chain and registers the handler. For a command handled
+  elsewhere, leave `.Handles` off, and attach it later with
+  `Handle.Command.Handles(fn)`. `.Declared()` belongs to the older string-key form
+  and errors on this one.
 - The handler gets `directive = { id, op, target, params }` and returns
   `true, "what happened"` or `false, "why not"`. The console shows the reason
   verbatim, so name the case. `target` is a string (a UserId for a player
-  command). It runs in Roblox only, so `game` is fine inside it.
+  command). It runs in Roblox only, so `game` is fine inside it. **Every path
+  must return**: from the console, returning nothing counts as having no handler,
+  so nothing is reported and the command expires `failed`.
 - Label a param for the console with `gt.meta(type, { Label = "..." })`.
   **`gt.meta` mutates the type it is handed**: build one type per command
   rather than sharing a labelled one.
@@ -72,8 +76,9 @@ expires as `failed`.
 Prefer `.Handles`, which also checks params.
 
 For a durable command to be collected, `Control.Start` needs
-`FetchCommands = Control.Reporter.Commands`. A per-server command reaches only a
-server started with `Registry = true`.
+`FetchCommands = Control.Reporter.Commands`. The console's Servers page lists and
+targets only servers started with `Registry = true`, and only those run the
+provided `craftsman.server.*` commands.
 
 ## Running from game code: `Control.Run`
 
@@ -141,7 +146,8 @@ Don't build a separate admin list: roles and grants live in the console.
 
 ## The Konsole command bar
 
-Optional. The game installs `Konsole = "kyrorblx/konsole@0.1.11"` itself.
+Optional. Konsole is already installed at `CraftsmanPackages/Konsole`; never add
+it to `wally.toml`.
 
 ```luau
 -- server Script, after Control.Reporter.Start

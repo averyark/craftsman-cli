@@ -5,16 +5,15 @@ metadata:
   author: averyark
   repository: craftsman-cli
   cli-version: "0.11.7"
-description: Set up Project Control in a Roblox game repository, end to end - install the craftsman CLI and Rojo, install Craftsman's packages (Control, the kit, Lifecycle and their deps) from Project Control's registry with craftsman init, write the Definitions and Stores ModuleScripts and the start Script, describe the place, add the release workflow, sign in, publish, and add the signing key - while handing the person an exact checklist for the steps that need their browser, passkey or Roblox's Creator Hub. Use when the user asks to set up, onboard, integrate, connect or install Project Control, craftsman-control or the craftsman CLI in their game, follows operations.craftsman.systems/onboard, or has a half-finished setup that fails to publish or report. Also use to check an existing setup for the traps that fail silently.
+description: Set up Project Control in a Roblox game repository, end to end - install the craftsman CLI and Rojo, install Craftsman's packages (Control, the kit, Lifecycle and their deps) from Project Control's registry with craftsman init, write the Definitions and Stores ModuleScripts and the start Script, describe the place, add the release workflow, sign in, publish, and add the signing key - while handing the person an exact checklist for the steps that need their browser, passkey or Roblox's Creator Hub. Use when the user asks to set up, onboard, integrate, connect or install Project Control, craftsman-control or the craftsman CLI in their game, or has a half-finished setup that fails to publish or report. Also use to check an existing setup for the traps that fail silently.
 ---
 
 # Set up Project Control
 
 Take a game repository from nothing to a published release. Do every step that
 the terminal and the files can do, skip whatever is already done, and give the
-person one short checklist for the rest. The same steps, for a person, are at
-`https://operations.craftsman.systems/onboard`, numbered 1 to 19; this skill
-uses the same numbers so the two can be read side by side.
+person one short checklist for the rest. The steps are numbered 1 to 19 here,
+and some run out of order because of what they depend on.
 
 ## Rules
 
@@ -39,15 +38,17 @@ Run these from the repository root and read the results before doing anything:
 
 ```bash
 git rev-parse --show-toplevel && git remote get-url origin
-ls rokit.toml craftsman.toml craftsman.lock wally.toml ember.toml *.project.json places .github/workflows 2>/dev/null
+ls rokit.toml craftsman.toml craftsman.lock wally.toml *.project.json places .github/workflows 2>/dev/null
 craftsman --version
 craftsman whoami
 craftsman doctor --offline
 ```
 
-- `craftsman --version` exits 1 when Craftsman is missing or its Control is
-  another version than the CLI, and fails outright when the CLI is not
-  installed. Both mean step 7 or 8 is left.
+- `craftsman --version` fails outright when the CLI is not installed, which
+  means step 7 is left. With no `craftsman.toml` it **exits 0** and prints
+  `framework none`, so read the line rather than the exit code: step 8 is left.
+  Inside a project it exits 1 when Craftsman is missing or its Control is another
+  version than the CLI, which also means step 8.
 - `craftsman doctor --offline` names what is wrong with an existing setup and
   how to fix each, reading only. A `craftsman.lock` that names a *bundle*, or a
   `wally.toml` naming `averyark/craftsman-control`, `-kit` or `-lifecycle`, is
@@ -166,8 +167,7 @@ what it wrote against the steps below rather than writing them by hand.
 
 The package folders are gitignored. `craftsman.toml` and `craftsman.lock` are
 committed: `craftsman install` and CI install exactly what the lock names. Don't
-add any Craftsman package to `wally.toml`. If the project uses `ember.toml`,
-ask before changing anything about its package manager.
+add any Craftsman package to `wally.toml`.
 
 ### Steps 9-11: the code
 
@@ -178,7 +178,7 @@ the same way:
 | File | DataModel path | Kind |
 |---|---|---|
 | `src/Control/Definitions.luau` | `ReplicatedStorage.Craftsman.Definitions` | ModuleScript |
-| `src/Features/Shop/Definitions.luau` (one per feature) | `ReplicatedStorage.Features.Shop.Definitions` | ModuleScript |
+| `src/Features/Shop/Definitions/init.luau` (one per feature) | `ReplicatedStorage.Features.Shop.Definitions` | ModuleScript |
 | `src/Control/Stores.luau` | `ServerScriptService.Craftsman.Control.Stores` | ModuleScript |
 | `src/Start.server.luau` | `ServerScriptService.Craftsman.Start` | Script |
 
@@ -188,26 +188,32 @@ the same way:
   "CraftsmanDevPackages": { "$path": "CraftsmanDevPackages" },
   "Craftsman": {
     "$className": "Folder",
-    "Definitions": { "$path": "src/Control/Definitions.luau" }
+    "Definitions": { "$path": "src/Control/Definitions.luau" },
+    "Assets": { "$path": "src/Control/Assets.luau" }
   }
 },
 "ServerScriptService": {
   "Craftsman": {
     "$className": "Folder",
-    "Control": { "$path": "src/Control" },
+    "Control": {
+      "$className": "Folder",
+      "Stores": { "$path": "src/Control/Stores.luau" }
+    },
     "Start": { "$path": "src/Start.server.luau" }
   }
 }
 ```
 
 The declaration sits in `ReplicatedStorage` so clients can read it for client
-features. `craftsman feature <Name> "<description>"` adds a feature's folder and
-`Definitions.luau` and its entry in `Includes`.
+features. Without the `Assets` mapping, passes and products have no ids and the
+server prints `[Commerce] No catalogue ids`. `craftsman feature <Name>
+"<description>"` adds a feature's folder, its `Definitions/init.luau` and
+`Generated.luau`, and its entry in `Includes`.
 
 **Definitions** (step 9). Ask what the game should declare first; a feature
 they already have, so it can be switched off, is a good start. Don't invent a
 feature or config nobody asked for. Each feature is declared in its folder's
-`Definitions.luau` (here `src/Features/Shop/Definitions.luau`); a feature's
+`Definitions` (here `src/Features/Shop/Definitions/init.luau`); a feature's
 `Active` is its on/off switch, and every config needs a `Default` that fits its
 GreenTea type:
 
@@ -242,9 +248,9 @@ return Control.Declare({
 })
 ```
 
-The CLI loads these modules under Lune, outside Roblox, to publish them:
-**nothing at module scope may read `game`, `workspace`, `script` or `Enum`, and
-no `const`.** Declaration keys are PascalCase. `Universe` takes a list
+The CLI loads these modules under Lune, outside Roblox, to publish them: **at
+module scope a module may name `game`, `workspace` or `script`, but never read
+them or branch on them, and no `const`.** Declaration keys are PascalCase. `Universe` takes a list
 (`{ a, b }`) when the same code runs in several universes.
 
 A feature the client runs is declared `Client = true`, with every config the
@@ -262,11 +268,15 @@ Keeper; a request-time check as `if not Shop.Active then`; a value as
 `Shop.DiscountPercent:Get()` or `:Observe(fn)`, always with a colon. Don't
 rewrite game code the person did not ask about.
 
-**Stores** (step 10). A ModuleScript that returns `Control`. With no entity
-declared yet it is only the first and last lines:
+**Stores** (step 10). A ModuleScript that returns `Control`. Open
+`Control.Metadata` here, which gives the console's Account page its player
+roster; `init` does not write this line, so add it:
 
 ```lua
 local Control = require("@game/ReplicatedStorage/CraftsmanPackages/CraftsmanControl")
+local Ledger = require("@game/ReplicatedStorage/CraftsmanPackages/Ledger")
+
+Control.Metadata({ Ledger = Ledger })
 
 return Control
 ```
@@ -297,8 +307,12 @@ Control.Reporter.Start({
 local Runtime: Control.Runtime = Control.Start(Definitions, {
 	OnEvent = Control.Reporter.Emit,
 	FetchCommands = Control.Reporter.Commands,
+	Registry = true, -- the console's Servers page and server overrides
 })
 ```
+
+`init` leaves `Registry = true` out, so add it unless the person doesn't want
+the Servers page: each server then writes to MemoryStore every 45 seconds.
 
 If the repository's requires use another form (instance paths, a different
 alias), match it. `init` also writes `src/Bootstrap.server.luau` and
@@ -420,13 +434,13 @@ warns at boot; with one it refuses anything unsigned.
 The last two steps are the person's, in the console:
 
 18. **Releases**: deploy to the default place group first, then the rest.
-19. Optional: `/onboard invite` in their Discord server, then a role for each
-    person under **Members**.
+19. Optional: ask Craftsman Staff to add each teammate to the project, then give
+    each a role under **Settings → Members**.
 
 Finish with the table from step 0, updated: what you did (files written,
 commands run), what they still have to do, and the one check that proves it
 all works: start a **Team Test** session or a live server and watch the
-project's Overview, where *A server has reported* ticks off when the first
-report gets through. If it never does, check in this order: Allow HTTP
+project's Overview, where *Install the framework and see a server report* ticks
+off when the first report gets through. If it never does, check in this order: Allow HTTP
 Requests, the secret's name, the secret's domain, and that `Start` is a Script
 under `ServerScriptService.Craftsman`.

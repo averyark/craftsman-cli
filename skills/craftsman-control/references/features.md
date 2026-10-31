@@ -79,8 +79,8 @@ union of literals of the enum item's names.
 ## A boolean "enabled" setting is the feature's `Active`, not a config
 
 Don't declare `Enabled = Control.Config(gt.boolean(), ...)`. Make the thing a
-feature and use its `Active`, which is the off switch the console, the bot's
-`/feature <key> off` and the attention list all understand.
+feature and use its `Active`, which is the off switch the console and its
+attention list understand.
 
 ## Running code
 
@@ -159,8 +159,8 @@ end)
 In-game, an attached admin overrides on their own server with
 `Control.Override(player, "shop.discount_percent", "25")`,
 `Control.Override(player, "shop", "off")` and `Control.ClearOverride(player, key?)`.
-The value is typed text. A server override reaches only a server started with
-`Registry = true`.
+The value is typed text, and this works with no Registry. Overriding a server
+from the console's Servers page needs it started with `Registry = true`.
 
 ## Declaring where it is used (R160)
 

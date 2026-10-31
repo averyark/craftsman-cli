@@ -12,7 +12,7 @@ options.
 | `craftsman publish --group G --activate --no-build --apply` | Change G's live declarations now, without a release. A protected group waits for a passkey in the browser |
 | `craftsman project [--check]` | Regenerate `default.project.json` / `release.project.json` from `src/Features`, and `Definitions/Generated.luau` from `:Declare` calls |
 | `craftsman serve` | `craftsman project` on every change, plus `rojo serve` |
-| `craftsman install [--frozen]` | Install exactly the packages `craftsman.lock` names into `CraftsmanPackages/`, and write `Settings.luau` from `craftsman.toml` |
+| `craftsman install [--frozen]` | Install the packages `craftsman.lock` names into `CraftsmanPackages/` (with no lock, the newest set; `--frozen` refuses instead), and write `Settings.luau` from `craftsman.toml` |
 | `craftsman update [kit[@0.10.1]]` | Move the packages, one or all, and rewrite `craftsman.lock`. Ask first: it changes what the game runs |
 | `craftsman doctor` | Find the mistakes that fail silently, and say how to fix each. Reads only |
 | `craftsman check` | Type-check and lint with luau-lsp, against `check-baseline.json`. Warns on raw `rbxassetid://` (`--explain RawAssetId`) |
@@ -23,8 +23,8 @@ options.
 | `craftsman store <add\|edit\|gift\|import\|rollback\|push\|list\|status>` | Passes, products (and their `.gift` products) and subscriptions in every universe; see [store](store.md) |
 | `craftsman asset` / `craftsman store` | No action, in a terminal: a browser of the index (kinds, entries, actions such as Copy path and Rename, which can rewrite references under `src/`) |
 | `craftsman init --place <id>` | Install the packages and write the files a feature-routed game needs. Never overwrites |
-| `craftsman feature <Name> "<description>"` | Add a feature's folder, its `Definitions.luau` and its entry in `Includes` |
-| `craftsman login` / `whoami` / `logout` | The GitHub session the CLI speaks as |
+| `craftsman feature <Name> "<description>"` | Add a feature's folder, its `Definitions/init.luau` and `Generated.luau`, and its entry in `Includes`. `--client` makes it run on clients too |
+| `craftsman login` / `whoami` / `logout` | The session the CLI speaks as, signed in with the person's passkey |
 | `craftsman skills [--check]` | Mirror `.agents/skills` into `.claude/skills` |
 
 ## Exit codes

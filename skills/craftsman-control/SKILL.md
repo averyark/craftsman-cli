@@ -1,6 +1,6 @@
 ---
 name: craftsman-control
-description: Use when writing or reviewing Roblox Luau code in a game that depends on Project Control (a `craftsman.toml` or `craftsman.lock`, `require(...CraftsmanPackages.CraftsmanControl)`, a `Control.Declare` Definitions module, or the `craftsman` CLI in rokit.toml), or when the user mentions Project Control, Craftsman Control, operations.craftsman.systems, a feature, config, off switch, Use Fallback, server override, command, `Control.Run`, the Konsole bar, an entity, reducer, Ledger store, game pass, developer product, subscription, receipt, gift, refund, or `craftsman publish`. Also use before hand-rolling a feature flag, a tunable constant, a remote admin or moderation command, a kick or ban, a DataStore or MemoryStore wrapper, a ProcessReceipt handler or an ownership check, because Project Control already provides each one and the console can only see what is declared through it. Gives the API, call syntax and silent traps. For first-time setup use setup-project.
+description: Use when writing or reviewing Roblox Luau code in a game that depends on Project Control (a `craftsman.toml` or `craftsman.lock`, `require(...CraftsmanPackages.CraftsmanControl)`, a `Control.Declare` Definitions module, or the `craftsman` CLI in rokit.toml), or when the user mentions Project Control, Craftsman Control, operations.craftsman.systems, a feature, config, off switch, Use Fallback, server override, command, `Control.Run`, the Konsole bar, an entity, reducer, Ledger store, game pass, developer product, subscription, receipt, gift, refund, or `craftsman publish`. Also use before hand-rolling a feature flag, a tunable constant, a remote admin or moderation command, a kick or ban, a DataStore or MemoryStore wrapper, a ProcessReceipt handler or an ownership check, because Project Control already provides each one and the console can only see what is declared through it. Gives the API, call syntax and silent traps. For first-time setup use setup-project; to plan a system use craftsman-capabilities.
 license: MIT
 metadata:
   author: averyark
@@ -72,9 +72,11 @@ Read the linked reference before using an area for the first time in a task.
 ## Rules that apply everywhere
 
 1. **Declaration modules run outside Roblox.** The CLI loads `Definitions` and
-   every module it requires under Lune to publish them. At module scope: no
-   `game`, `workspace`, `script` or `Enum`, and no `const`. Inside a handler or
-   a `Then` body, `game` is fine, because it runs only in Roblox.
+   every module it requires under Lune to publish them. At module scope a module
+   may name `game`, `workspace` or `script`, which are stand-ins there, but never
+   read them or branch on them: reading one stops the load, and a stand-in is
+   always true. No `const`. A `:Declare` spec may not touch them at all. Inside a
+   handler or a `Then` body, `game` is fine, because it runs only in Roblox.
 2. **Stores open in a ModuleScript, never a Script**, at
    `ServerScriptService.Craftsman.Control.Stores`, which returns `Control`. The
    console reads data through a Luau Execution session that requires that
@@ -101,7 +103,7 @@ Read the linked reference before using an area for the first time in a task.
 8. **Reserved names.** Keys starting `craftsman.` are Project Control's, and
    member names starting `_` are reserved. Don't declare either.
 9. **A quiet server sends nothing to Project Control.** No heartbeat, no timer
-   reaching it: the pricing rests on it. A timer writing only to the game's own
+   reaching it: what the product costs to run rests on it. A timer writing only to the game's own
    DataStore or MemoryStore is fine.
 10. **Nothing secret goes in a declared name.** Feature, config and command
     names in a client-readable module can be read by players. Values of
@@ -140,7 +142,7 @@ return Control.Declare({
 local HttpService = game:GetService("HttpService")
 
 local Control = require("@game/ServerScriptService/Craftsman/Control/Stores")
-local Definitions = require("@game/ServerScriptService/Craftsman/Control/Definitions")
+local Definitions = require("@game/ReplicatedStorage/Craftsman/Definitions")
 
 Control.Reporter.Start({
 	declaration = Definitions,
