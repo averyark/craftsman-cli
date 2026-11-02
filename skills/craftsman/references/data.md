@@ -23,33 +23,37 @@ local Clear = Profile.Writes({}).Then(function(_, _)
 end)
 ```
 
-A reducer must also never read a clock or random, because Ledger replays it on
-every read. Pass the instant in as a field.
+`Note` must still be in `Default` or a migration's `Fields`.
+
+A reducer must also never read a clock or random, because Ledger runs it again
+whenever it judges an op on a newer saved state. Pass the instant in as a field.
 
 ## Migrations
 
 ```luau
 Migrations = {
-	{ Apply = function(state) return next end, Compatible = true },
+	{ Run = function(state) return next end, Fields = { "Gems" } }, -- adds fields
+	{ Run = function(state) return next end, IsBreaking = true }, -- removes or retypes
 },
 ```
 
 - Declared on the entity. `Control.Store` refuses them, and only a ledger entity
   takes them.
-- `Compatible` must be stated.
+- Each step names its `Fields` or says `IsBreaking = true`, never both. Any other
+  key errors.
 
 A release compares each entity with the last deployed release, and these are
 problems it reports:
 
 | Change | Needs |
 |---|---|
-| Any change to `State` | A new migration |
-| A field removed or retyped | A new migration with `Compatible = false`, because an older server can't read it |
-| A deployed migration deleted, or its `Compatible` changed | Don't. Add a new one |
+| Any change to `State` | A new migration, naming any added field in `Fields` |
+| A field removed or retyped | A new migration with `IsBreaking = true`, because an older server can't read it |
+| A deployed migration deleted, or its `IsBreaking` or `Fields` changed | Don't. Add a new one |
 
-An incompatible step is a breaking change, because older servers can no longer
-read those documents. Only adding fields can be `Compatible = true`, and whether
-an older server tolerates the extra field is not verified.
+A breaking step is a breaking change, because older servers can no longer read
+those documents. A `Fields` step adds fields only, and Ledger lets an older
+server keep working because the step names them.
 
 A deploy with a save-data change takes a DataStore snapshot first. The key needs
   `universe-datastores.control:snapshot`, so the first one may stop and name it.
@@ -89,8 +93,9 @@ Traps, each measured on Roblox:
 
 - **A queue read from the console hides its items from the game** for the
   invisibility window, so it is an operation there, never a browse.
-- **A discard after that window answers success and does nothing.** Keep work
-  shorter than `Invisibility`, and make handling safe to repeat.
+- **A `Discard` after that window answers `false` with `Expired`, and the item
+  returns.** Roblox itself answers success and does nothing, and Control catches
+  it. Keep work shorter than `Invisibility`, and make handling safe to repeat.
 - `Unresolved` from a queue add means it **may have landed**. Never retry blindly.
 - An entity with no `Default` has no operations, and is read-only in the console.
 - Names starting `Craftsman` or ending `_CraftsmanApplied` are reserved.
@@ -120,7 +125,7 @@ hands those to a person. Tell them, or design for, these limits:
 - A real DataStore keeps **one version per key per UTC hour**. The newest write in
   an hour replaces that hour's version, so several operations can share one.
 - A version id isn't stable until its hour ends.
-- About 100 versions are reachable.
+- History lists a key's whole 30 days of saves.
 - Revert writes a new edit under the same `structural` gates, so nothing is
   rewritten and nothing is undone without a person.
 - A log entry can't be removed. A wrong grant is corrected by another operation.

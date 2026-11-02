@@ -535,30 +535,14 @@ group when it is deployed there, from the console's Releases. `craftsman help`
 lists every command, and `craftsman <command> --help` shows its options and
 examples.
 
-## Agent skills
+## Agent skill
 
-Three [Agent Skills](https://agentskills.io) live in `skills/`:
+One [Agent Skill](https://agentskills.io) lives in `skills/craftsman`. It covers all of Craftsman: setting a game up, planning a system, Control, Lifecycle, the kit, the CLI and shipping. It teaches an agent to declare through Control and use the kit instead of hand-rolling a flag, an admin command, a DataStore wrapper, a receipt handler, a loader or a tween helper the console cannot see. It says what fails silently and what only a person can do, and it carries the docs for an agent with no web access. It never asks for or handles the game key or an Open Cloud key.
 
-- **`setup-project`** sets a game repository up for Project Control: it does
-  every step of [Integrate into your game](#integrate-into-your-game) that a
-  terminal can, and hands you a checklist for the ones that need the console or
-  the Creator Hub. It never asks for or handles the game key or an Open Cloud
-  key. Ask the agent to set up Project Control.
-- **`craftsman-capabilities`** helps an agent plan a whole system on Project
-  Control: which capability fits, what each costs a person at run time, and what
-  fails silently, across command tiers and delivery, live brakes, migrations,
-  MemoryStore, in-Roblox tests and shipping.
-- **`craftsman-control`** teaches an agent writing game code what Project
-  Control already provides (features and configs, commands and `Control.Run`,
-  entities and stores, the store and receipts, the CLI) and how to call it, so
-  it declares through Control instead of hand-rolling a flag, an admin command,
-  a DataStore wrapper or a receipt handler the console cannot see.
-
-Install them with:
+Install it with:
 
 - **Any agent, via the skills CLI:** `npx skills add averyark/craftsman-cli`
-- **Manually:** copy the folders under `skills/` into `.agents/skills/`, then
-  run `craftsman skills` to mirror them into `.claude/skills/` for Claude Code.
+- **Manually:** copy `skills/craftsman` into `.agents/skills/`, then run `craftsman skills` to mirror it for Claude Code.
 
 ## Exit codes
 

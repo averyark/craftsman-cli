@@ -3,7 +3,7 @@
 An **entity** is saved data the console can read by key, edit, revert and
 investigate: a player profile, an inventory, a world document, a matchmaking
 pool. Its shape is declared once as a GreenTea type, and it changes only
-through **reducers**. Data entities sit on Ledger (`xoifaii/ledger@5.2.1`) in a
+through **reducers**. Data entities sit on Ledger (`xoifaii/ledger@7.0.5`) in a
 DataStore; MemoryStore entities sit on a sorted map or a queue.
 
 Don't write a raw DataStore wrapper for data an operator may ever need to look
@@ -57,7 +57,7 @@ return Profile:Reducers(Reducers)
 | `Store = { Name = "..." }` | The DataStore. The name is also what the console lists, so a mismatch with what the game really writes reads as an empty store, silently |
 | `KeyedBy` | `"Player"` (keyed by UserId, with sessions) or `"String"` (any key, written by key) |
 | `State` | `gt.build(gt.table({...}))`: the whole shape. The console's editor, params and revert are derived from it |
-| `Default` | The document a new key starts from. Required on a ledger entity. A memorystore entity without one is read-only: no reducers, and `Control.Store` refuses it |
+| `Default` | The document a new key starts from. Required on a ledger entity. Every field of `State`, optional ones included, must be in `Default` or a migration's `Fields`, or the declaration errors. A memorystore entity without one is read-only: no reducers, and `Control.Store` refuses it |
 | `Shared` | Fields other players may receive through replication |
 | `Owner` | Fields the owner receives; without it they receive every field not starting `_` |
 | `Migrations` | Save-data migrations. They belong here, never on `Control.Store` |
@@ -69,8 +69,9 @@ return Profile:Reducers(Reducers)
 
 - `Then` returns **a table of the fields that changed**, or **`nil` to refuse**.
 - **Never read a clock, `math.random` or anything outside `state` and
-  `fields`.** Ledger replays every stored op on every read. Pass an instant in
-  as a field.
+  `fields`.** Ledger runs a reducer again whenever it judges an op on a newer
+  saved state, and Studio runs it repeatedly and warns if the runs differ. Pass
+  an instant in as a field.
 - A bare `.Writes(...).Then(fn)` is **private to the game**. Chaining an impact
   (`.Grants(field)`, `.Transfers(field)`, `.Prices(field?)`, `.NoImpact()`) or
   any refinement makes it an **operation** in the console's catalogue, and then
@@ -98,7 +99,7 @@ local profiles = Control.Store({
 	Entity = Player.Profile,
 	Ledger = Ledger,
 	-- OnApplied = function(key, kind, fields, state, opId) end,
-	-- OnLoadFailed = function(player, reason) return keepThem end,
+	-- OnLoadFailed = function(player, reason) end, -- having one stops the kick; the player stays with no session
 })
 
 return Control
@@ -135,8 +136,9 @@ end)
 - `reason` is Ledger's word (`Refused`, `Unresolved`, `Busy`...). `Unresolved`
   means it may have landed: never retry a grant on it blindly.
 - **A console edit lands in the DataStore**, and a server holding that player's
-  session sees it only at the session's next save. Call
-  `profiles.Session(player):Flush():Wait()` when told an edit landed. `OnApplied`
+  session sees it at its next save or idle read, up to 120 seconds. Call
+  `profiles.Session(player):Refresh()`, which yields and returns `(ok, reason)`,
+  when told an edit landed. `OnApplied`
   fires in the process that wrote, and a console edit runs in a Luau Execution
   session rather than the live server, so use it to publish a MessagingService
   nudge that the live server listens for.
@@ -203,7 +205,7 @@ Control.Store({
 ```
 
 - No hash maps (Open Cloud cannot read them). No history, so no revert.
-- A sorted-map key is at most 127 characters. A queue reducer takes no key, and
+- A sorted-map key is at most 128 bytes. A queue reducer takes no key, and
   must be `.Irreversible()` when it is exposed as an operation.
 - Reading a queue from the console hides its items from the game for a while,
   so the console treats it as an operation, never a browse.

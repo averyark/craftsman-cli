@@ -1,13 +1,3 @@
----
-name: setup-project
-license: MIT
-metadata:
-  author: averyark
-  repository: craftsman-cli
-  cli-version: "0.11.9"
-description: Set up Project Control in a Roblox game repository, end to end - install the craftsman CLI and Rojo, install Craftsman's packages (Control, the kit, Lifecycle and their deps) from Project Control's registry with craftsman init, write the Definitions and Stores ModuleScripts and the start Script, describe the place, add the release workflow, sign in, publish, and add the signing key - while handing the person an exact checklist for the steps that need their browser, passkey or Roblox's Creator Hub. Use when the user asks to set up, onboard, integrate, connect or install Project Control, craftsman-control or the craftsman CLI in their game, or has a half-finished setup that fails to publish or report. Also use to check an existing setup for the traps that fail silently.
----
-
 # Set up Project Control
 
 Take a game repository from nothing to a published release. Do every step that
@@ -18,7 +8,7 @@ and some run out of order because of what they depend on.
 ## Rules
 
 - **Survey before writing.** Every step checks whether it is already done and
-  skips it if so. Running the skill again must change nothing that is right.
+  skips it if so. Running this again must change nothing that is right.
 - **Never touch a secret.** The game key belongs only in Roblox's Secrets, the
   Open Cloud key only in the console. Never ask for either, never put either in
   a file, `.env` or a command. If the person pastes one, say it does not belong
@@ -158,6 +148,10 @@ what it wrote against the steps below rather than writing them by hand.
   moves every package to the newest set for this CLI, including a lock that
   still names a bundle (CLI 0.9 or 0.10.0). Its `release.yml` must then be
   replaced with the template (step 13): the old one cannot read the new lock.
+- **A game moving from Ledger 5** starts every store fresh, because nothing is
+  imported. Rename each declared store to one ending in `V7`, and shut down
+  every server on publish, because Ledger 5 and 7 servers must never run side by
+  side. Tell the person first.
 - **A game whose `wally.toml` names Craftsman:** run `craftsman update`, which
   moves it off Wally all or nothing (removes those packages from `wally.toml`,
   rewrites requires of `ReplicatedStorage/Packages/<name>` to
@@ -255,7 +249,7 @@ them or branch on them, and no `const`.** Declaration keys are PascalCase. `Univ
 
 A feature the client runs is declared `Client = true`, with every config the
 client reads `Shared = true`, in a module under `ReplicatedStorage` (in
-`craftsman init`'s layout, the feature's `Definitions.luau`), and needs a
+`craftsman init`'s layout, the feature's `Definitions/init.luau`), and needs a
 LocalScript that requires the declaration and calls `Control.StartClient()`
 once; without that call it never runs on a client, with no error. `init`'s
 `src/Bootstrap.client.luau` already does both, so check it is there rather than

@@ -47,7 +47,7 @@ The first `applied` settles it.
 | Returns `true, "what"` | `applied` | `applied` |
 | Returns `false, "why"` | `refused`, with the reason shown | `refused` |
 | Returns nothing | **Not reported; expires `failed`** | `refused` |
-| Errors | `refused`, "the game's handler errored" | `errored` |
+| Errors | `refused`, "the game's handler errored" | `failed`, code `errored` |
 
 Without `Control.Reporter.Start`, the action still lands and the console records
 `failed`, because nothing came back.
@@ -66,8 +66,9 @@ Profile.Writes({ Amount = "Coins" })                       -- param Amount, type
 Profile.Writes({ Amount = { From = "Coins", Label = "Coins to add" } })
 ```
 
-The reducer field names `Id`, `Kind`, `Once`, `OnceAt` and `Booking`, and names
-starting `Tx`, are reserved.
+The field name `Kind` is reserved. A reducer may not be named `Open`, `Take`,
+`Credit`, `Close`, `Hold`, `Confirm`, `Release`, `Bump` or `Cut`, or start with
+`Debit:` or `_`.
 
 ## Live brakes
 
