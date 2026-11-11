@@ -233,7 +233,7 @@ You do not need Wally unless your game installs its own packages with it. If `wa
 2. Add the CLI and Rojo:
 
    ```bash
-   rokit add averyark/craftsman-cli@0.11.11 craftsman
+   rokit add averyark/craftsman-cli@0.11.12 craftsman
    rokit add rojo-rbx/rojo
    ```
 
@@ -248,7 +248,7 @@ Commit `rokit.toml`. It now holds both tools:
 
 ```toml
 [tools]
-craftsman = "averyark/craftsman-cli@0.11.11"
+craftsman = "averyark/craftsman-cli@0.11.12"
 rojo = "rojo-rbx/rojo@7.7.1"
 ```
 

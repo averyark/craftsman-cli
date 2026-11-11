@@ -115,14 +115,14 @@ If `rokit` itself is missing, stop and ask the person to install it
 Otherwise add only what `rokit.toml` lacks:
 
 ```bash
-rokit add averyark/craftsman-cli@0.11.11 craftsman
+rokit add averyark/craftsman-cli@0.11.12 craftsman
 rokit add rojo-rbx/rojo
 ```
 
 The last word of the first line names the command `craftsman`. Wally is not
 needed for Craftsman, which never comes from Wally; keep `UpliftGames/wally`
 only when the game installs packages of its own with it. An older `craftsman`
-pin moves to 0.11.11, then `rokit install`, and step 8 runs `craftsman update`.
+pin moves to 0.11.12, then `rokit install`, and step 8 runs `craftsman update`.
 If the game uses framework 0.1.x (`Control.Flag`, `:Flags`,
 `Control.FlagService`), stop and tell the person: moving it is a migration, not
 a pin bump, and follows "Upgrading older declarations" in this repository's
