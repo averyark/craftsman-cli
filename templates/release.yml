@@ -39,6 +39,10 @@ on:
         description: Set by a publish.
         required: false
         type: string
+      universe:
+        description: Set by a publish.
+        required: false
+        type: string
       place_id:
         description: Set by Project Control.
         required: false
@@ -60,7 +64,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}-${{ inputs.places || inputs.place_id || 'all' }}-${{ inputs.rebuild_of || 'new' }}
+  group: release-${{ github.ref }}-${{ inputs.places || inputs.place_id || 'all' }}-${{ inputs.rebuild_of || 'new' }}-${{ inputs.universe || 'default' }}
   cancel-in-progress: true
 
 jobs:
