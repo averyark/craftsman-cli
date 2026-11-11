@@ -5,8 +5,8 @@ license: MIT
 metadata:
   author: averyark
   repository: craftsman-cli
-  cli-version: "0.11.10"
-  control-version: "0.11.10"
+  cli-version: "0.11.11"
+  control-version: "0.11.11"
   kit-version: "0.10.1"
   lifecycle-version: "2.0.0"
   ledger-version: "7.0.5"
@@ -226,4 +226,4 @@ Say it once, plainly, then do the work.
 
 ## What this is checked against
 
-CLI and Control 0.11.10, kit 0.10.1, Lifecycle 2.0.0 and Ledger 7.0.5, on 2026-11-03. If a check in `references/verify.md` fails, the source is right and this file is stale, and you say so.
+CLI and Control 0.11.11, kit 0.10.1, Lifecycle 2.0.0 and Ledger 7.0.5, on 2026-11-03. If a check in `references/verify.md` fails, the source is right and this file is stale, and you say so.
