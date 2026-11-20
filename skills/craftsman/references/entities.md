@@ -3,7 +3,7 @@
 An **entity** is saved data the console can read by key, edit, revert and
 investigate: a player profile, an inventory, a world document, a matchmaking
 pool. Its shape is declared once as a GreenTea type, and it changes only
-through **reducers**. Data entities sit on Ledger (`xoifaii/ledger@7.0.5`) in a
+through **reducers**. Data entities sit on Ledger (`xoifaii/ledger@7.3.1`) in a
 DataStore; MemoryStore entities sit on a sorted map or a queue.
 
 Don't write a raw DataStore wrapper for data an operator may ever need to look
@@ -72,6 +72,9 @@ return Profile:Reducers(Reducers)
   `fields`.** Ledger runs a reducer again whenever it judges an op on a newer
   saved state, and Studio runs it repeatedly and warns if the runs differ. Pass
   an instant in as a field.
+- **Never change `state` or anything inside it.** Build new tables for what
+  changes. Since Ledger 7.2 a live server refuses a reducer that writes into
+  the state it was given, as Studio always did.
 - A bare `.Writes(...).Then(fn)` is **private to the game**. Chaining an impact
   (`.Grants(field)`, `.Transfers(field)`, `.Prices(field?)`, `.NoImpact()`) or
   any refinement makes it an **operation** in the console's catalogue, and then
@@ -98,7 +101,9 @@ local Player = require("./Player")
 local profiles = Control.Store({
 	Entity = Player.Profile,
 	Ledger = Ledger,
-	-- OnApplied = function(key, kind, fields, state, opId) end,
+	-- OnApplied = function(key, kind, fields, state, opId) end, -- at once, before a session's save
+	-- OnSaved = function(key, kind, fields, state, opId) end, -- once, when the change is known to be saved
+	-- OnTurned = function(key, kind, fields, why, opId) end, -- once, when it was not saved or cannot be known
 	-- OnLoadFailed = function(player, reason) end, -- having one stops the kick; the player stays with no session
 })
 
@@ -142,6 +147,53 @@ end)
   fires in the process that wrote, and a console edit runs in a Luau Execution
   session rather than the live server, so use it to publish a MessagingService
   nudge that the live server listens for.
+
+## Knowing a write was saved
+
+From Control 0.11.14. `Apply` answers before anything is saved: Ledger saves a
+session's changes together, every 30 seconds or at a flush, a `Commit` or an
+unload, and judges each one again then. So a `true` from `Apply` is not a save.
+
+| Call | Answers | Saved when it answers `true`? |
+|---|---|---|
+| `store.Apply(player, kind, fields)` | `ok, reason?, detail?, applied?` | No. `applied` is Ledger's handle for the queued change |
+| `store.Commit(player, kind, fields, options?)` | `ok, reason?, detail?, state?, outcome?` | Yes. It also saves the changes queued before it, in the same write |
+| `store.Edit(key, kind, fields)` | `ok, reason?, detail?, state?, outcome?` | Yes |
+| `store.Confirm(key, id, kind, fields, idAt)` | `ok, reason?, detail?, state?, outcome?` | Yes |
+
+- **`Commit` is what a "Saving…" label waits on.** On `true`, `state` is the
+  saved document. On `Refused`, `state` is what refused it. `options` is
+  `{ Id, IdAt }`, both or neither, with `IdAt` from `store.Now()` at the first
+  send: resending the same pair applies once.
+- **`Unresolved` means the save did not answer in time, and Ledger keeps
+  sending it.** The fifth value is then an `outcome`: `outcome:Wait(timeout?)`
+  yields and gives `true` once it saved, or `false` and a reason, or nothing if
+  the timeout came first. `outcome:Happened()` says whether it is known. Keep
+  the label up until it settles, and never resend an unnamed grant on
+  `Unresolved`.
+- **`OnSaved` fires once per change, when it is known to be saved**: a queued
+  `Apply` when its save lands, and a `Commit`, `Edit` or `Confirm` when it
+  answers `true` or its `outcome` later settles `true`. Count analytics there,
+  never in `OnApplied`. For a queued `Apply` and a late landing, `state` is nil.
+- **`OnTurned` fires once when a change was not saved**: Ledger turned it away
+  at the save (`why` is its word, such as `Cut`), an `outcome` settled false, or
+  it cannot be known (`why` is `"Unknown"`).
+- **`store.WatchFates(listener)`** hears every queued `Apply`'s end, on any
+  session of that store, and returns a function that stops it. The listener
+  gets `{ Key, Kind, Fields, Fate, Why, Applied }`, with `Fate` one of `"Took"`,
+  `"Turned"` or `"Unknown"` and `Key` the Player. Match a change by
+  `Applied.CallId` against the handle `Apply` returned, never by table identity.
+- **A change still queued when a session is unloaded during an outage is
+  chased.** Ledger stops reporting once the session ends, so Control asks
+  about each one, at 10 seconds and then less often for about five minutes,
+  and reports it as saved, turned or unknown. It costs one request per queued
+  change per ask, and only when something listens.
+- A named change reports `OnSaved` once per server, however often it is resent.
+  A `Commit` has no fate, so nothing reports twice.
+- `OnApplied` is unchanged: it fires at once, and not for a late landing.
+- A reducer accessor (`Player.Profile.RecordVisit(player, {})`) is `Apply`, and
+  hands back the same values. To save before answering, call `store.Commit`
+  with the reducer's name.
 
 ## Replicating to clients
 
