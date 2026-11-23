@@ -120,7 +120,7 @@ overwrite.
 ## History
 
 The timeline, revert and the **Investigate** card are in the console, and an agent
-hands those to a person. Tell them, or design for, these limits:
+hands those to a person, or reads a handed document through `craftsman mcp` ([mcp](mcp.md)). Tell them, or design for, these limits:
 
 - A real DataStore keeps **one version per key per UTC hour**. The newest write in
   an hour replaces that hour's version, so several operations can share one.

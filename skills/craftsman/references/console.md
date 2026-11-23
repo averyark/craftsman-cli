@@ -1,6 +1,6 @@
 # The console
 
-An agent cannot use the console. It asks for a passkey, and nothing in the CLI reads a player's document or runs a command. So when the work is here, hand the person these steps. Pages are at `/dashboard/<project id>/<page>`, and the place group menu at the top decides which group a page acts on.
+An agent cannot use the console: it asks for a passkey. Through `craftsman mcp` an agent can read the documents a person hands it and propose operations, which the person accepts here ([mcp](mcp.md)). Everything else on these pages, hand the person as steps. Pages are at `/dashboard/<project id>/<page>`, and the place group menu at the top decides which group a page acts on.
 
 Full steps are in `docs-bundle.md` under each path.
 
@@ -19,7 +19,7 @@ Full steps are in `docs-bundle.md` under each path.
 | **Store**, **Assets** | Read only mirrors of what the repository uploaded | `/docs/assets/assets` |
 | **Health** | Reads which key permissions are proven, and rate limits | `/docs/monitoring/check-health` |
 | **Audit** | Reads every change, by person, action and source | `/docs/monitoring/search-the-audit-log` |
-| **Approvals** | Approves, declines or cancels what is waiting | `/docs/team-and-access/approve-a-request` |
+| **Approvals** | Approves, declines or cancels what is waiting, and accepts or declines an agent's proposals | `/docs/team-and-access/approve-a-request` |
 | **Settings** | Universes and keys, place groups, members, roles, release settings, signing, the webhook | `/docs/project-settings/add-a-universe` |
 
 The sidebar shows a page only if the person may read it.
@@ -75,7 +75,7 @@ Do not change anything first. In this order:
 
 1. Open the document on **Players & Data**, then **Investigate**. It reads only when a button is pressed.
 2. Press **Compare** with **Changes around** set to the moment, or **Whole history**. **Also in this window** lists deploys, config edits and operations.
-3. **Copy for LLM** gives you a redacted brief. It asks for a passkey, and the audit records it. Ask the person to paste it.
+3. **Give to agent** hands the document to a signed-in `craftsman mcp` session. **Copy for LLM** gives you a redacted brief instead. It asks for a passkey, and the audit records it. Ask the person to paste it.
 4. The fix is an operation, or a revert a person requests. A log entry cannot be removed.
 
 There is no verdict in the console, and a rate is an average over a gap nobody can see inside. A real DataStore keeps at most one version per key per hour.

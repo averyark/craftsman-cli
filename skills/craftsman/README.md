@@ -25,6 +25,7 @@ It is not the documentation. A full copy of that is in `references/docs-bundle.m
 | `references/data.md` | Migrations, MemoryStore, the roster, history and erasure |
 | `references/store.md` | Passes, products, subscriptions, receipts and `Control.Commerce` |
 | `references/cli.md` | Every CLI command and exit code |
+| `references/mcp.md` | `craftsman mcp`: an agent reading handed documents and proposing operations |
 | `references/shipping.md` | Publishing, tests in Roblox, changelogs and `craftsman.toml` |
 | `references/lifecycle.md` | The module loader, `Keeper`, the bootstrap and kit settings |
 | `references/kit-entities.md` | `Entity`, `Tag` and `Pathfind` |

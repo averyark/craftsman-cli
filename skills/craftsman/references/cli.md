@@ -1,6 +1,6 @@
 # The craftsman CLI
 
-Installed per project with Rokit (`craftsman = "averyark/craftsman-cli@0.11.15"`).
+Installed per project with Rokit (`craftsman = "averyark/craftsman-cli@0.11.16"`).
 It loads the framework from the project's own `CraftsmanPackages/`, so
 `craftsman install` must have run. `craftsman help <command>` lists a command's
 options.
@@ -25,6 +25,8 @@ options.
 | `craftsman init --place <id>` | Install the packages and write the files a feature-routed game needs. Never overwrites |
 | `craftsman feature <Name> "<description>"` | Add a feature's folder, its `Definitions/init.luau` and `Generated.luau`, and its entry in `Includes`. `--client` makes it run on clients too |
 | `craftsman login` / `whoami` / `logout` | The session the CLI speaks as, signed in with the person's passkey |
+| `craftsman mcp login` | Sign an agent in for one project, for one day, with the person's passkey in the browser |
+| `craftsman mcp` | The local MCP server an agent client starts: reads handed documents and proposes operations; see [mcp](mcp.md) |
 | `craftsman skills [--check]` | Mirror `.agents/skills` into `.claude/skills` |
 
 ## Exit codes
@@ -44,6 +46,8 @@ options.
 - `craftsman login` waits for the person's passkey in the browser: ask them to
   run it on their own computer (`! craftsman login` in Claude Code). `craftsman whoami` shows whether this
   machine is signed in and to which projects.
+- `craftsman mcp login` needs the person too, and is separate from `craftsman login`.
+  Through `craftsman mcp` you read only what they hand you and propose; they accept.
 - After editing any `:Declare` call or a feature folder, run
   `craftsman project` and include the regenerated files in the change.
 - `asset` and `store` take `--yes`, `--dry-run` and `--plain`. Run them with

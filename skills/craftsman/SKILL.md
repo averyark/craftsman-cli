@@ -5,8 +5,8 @@ license: MIT
 metadata:
   author: averyark
   repository: craftsman-cli
-  cli-version: "0.11.15"
-  control-version: "0.11.15"
+  cli-version: "0.11.16"
+  control-version: "0.11.16"
   kit-version: "0.10.1"
   lifecycle-version: "2.0.0"
   ledger-version: "7.3.1"
@@ -125,7 +125,7 @@ Hand these over as exact steps. `references/console.md` has them.
 - Add members, and give roles. Craftsman Staff add members directly, and Staff or a project's Superpower can invite with `/onboard invite`.
 - Save the game key in Roblox's Secrets, and the Open Cloud key in the console.
 
-Nothing in the CLI reads a player's document or runs a command. If you need one read, ask the person to open it in the console and paste what it shows.
+Nothing in the CLI reads a player's document or runs a command by itself. With **`craftsman mcp`** an agent reads the documents a person hands it, as labels and never UserIds, and proposes operations the person accepts in **Approvals**: `references/mcp.md`. The person signs the agent in (`! craftsman mcp login`) and hands each document over. Without it, ask them to open the document in the console and paste what it shows.
 
 ## Stop before these
 
@@ -181,6 +181,7 @@ Answer the question asked. Load one of these, not all of them. Files are in `ref
 | "keybind", "mobile button", "UI scale" | `kit-input-ui.md` |
 | "raycast", "lerp", "string helper" | `kit-world-data.md` |
 | "how do I do this in the console" | `console.md` |
+| "investigate this player with me", "propose bans", "use the MCP" | `mcp.md` |
 | "it is not showing", "it did nothing", "failed" | `triage.md` |
 | "the game is on fire", "turn it off" | `console.md`, `/docs/emergencies/turn-a-feature-off` |
 | "a player's data went wrong" | `console.md`, then the Ledger skill's forensics, before any change |
@@ -226,4 +227,4 @@ Say it once, plainly, then do the work.
 
 ## What this is checked against
 
-CLI and Control 0.11.15, kit 0.10.1, Lifecycle 2.0.0 and Ledger 7.3.1, on 2026-11-03. If a check in `references/verify.md` fails, the source is right and this file is stale, and you say so.
+CLI and Control 0.11.16, kit 0.10.1, Lifecycle 2.0.0 and Ledger 7.3.1, on 2026-11-03. If a check in `references/verify.md` fails, the source is right and this file is stale, and you say so.
