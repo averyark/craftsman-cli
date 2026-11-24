@@ -37,11 +37,10 @@ Someone **deciding whether to adopt it** gets an honest answer: every player que
 
 ## The reference lives here
 
-Three copies, in the order to reach for them.
+Two places, in the order to reach for them.
 
-1. **`references/docs-bundle.md`**, the whole documentation in one file, about 8,500 lines. Search for `## Page: ` to list its pages. Search it, do not read it through. It is here so an agent with no web access still has it.
+1. **The docs, through `craftsman mcp`**: `search_docs`, `list_docs` and `read_doc`, with no sign-in needed. `docs/README.md` says how to connect and how the docs are laid out, and `docs/index.md` lists every page with its summary. Never fetch the docs site: it turns agents away.
 2. **The source**, in `CraftsmanPackages/`. When it is there, it is the truth. `references/verify.md` says which file answers which question.
-3. **The site**, if you can fetch: `https://operations.craftsman.systems/llms.txt` lists every article as markdown. A fetch of `/docs/...` itself returns an empty shell.
 
 When the docs and the source disagree, the source wins, and you say so. If you can reach neither, answer and say you could not check it, naming the page that would settle it.
 
@@ -155,7 +154,7 @@ The stop rules are about live data and live games, not code. Asked to fix a redu
 
 ## Where to look
 
-Answer the question asked. Load one of these, not all of them. Files are in `references/`. A `/docs/` path is a page in the bundle.
+Answer the question asked. Load one of these, not all of them. Files are in `references/`. A `/docs/` path is a page to read with `read_doc`.
 
 | The person says | Go to |
 |---|---|
@@ -163,14 +162,14 @@ Answer the question asked. Load one of these, not all of them. Files are in `ref
 | "what can this do", "plan this system" | The table above, then `operations.md`, `data.md`, `shipping.md` |
 | "add a feature", "a config", "an off switch" | `features.md` |
 | "an admin command", "kick", "ban", "Konsole" | `commands.md`, `operations.md` |
-| "which tier", "why can't a moderator run it" | `operations.md`, `/docs/concepts/tiers` |
+| "which tier", "why can't a moderator run it" | `operations.md`, `/docs/ccs/ccs-tiers` |
 | "save data", "reducer", "a store" | `entities.md`, `data.md` |
 | "a migration", "add a field", "save data check" | `data.md` |
-| "a queue", "a leaderboard", "matchmaking" | `data.md`, `/docs/players-and-data/memorystore-entities` |
-| "a pass", "a product", "receipt", "refund", "gift" | `store.md`, `/docs/store-and-purchases/handle-refunds` |
-| "an animation id", "upload an asset" | `cli.md`, `/docs/assets/assets` |
-| "release", "deploy", "CI" | `shipping.md`, `/docs/releases/deploy-a-release` |
-| "tests in Roblox" | `shipping.md`, `/docs/releases/test-a-build` |
+| "a queue", "a leaderboard", "matchmaking" | `data.md`, `/docs/dms/dms-memorystore` |
+| "a pass", "a product", "receipt", "refund", "gift" | `store.md`, `/docs/por/por-refunds` |
+| "an animation id", "upload an asset" | `cli.md`, `/docs/ams/ams-uploads` |
+| "release", "deploy", "CI" | `shipping.md`, `/docs/rms/rms-deploys` |
+| "tests in Roblox" | `shipping.md`, `/docs/rms/rms-tests` |
 | "`craftsman.toml`", "feature folders" | `shipping.md`, `/docs/project-setup/craftsman-toml` |
 | "update the packages" | `updating.md` |
 | "the module loader", "Init", "Start", "cleanup" | `lifecycle.md` |
@@ -183,9 +182,9 @@ Answer the question asked. Load one of these, not all of them. Files are in `ref
 | "how do I do this in the console" | `console.md` |
 | "investigate this player with me", "propose bans", "use the MCP" | `mcp.md` |
 | "it is not showing", "it did nothing", "failed" | `triage.md` |
-| "the game is on fire", "turn it off" | `console.md`, `/docs/emergencies/turn-a-feature-off` |
+| "the game is on fire", "turn it off" | `console.md`, `/docs/fms/fms-features` |
 | "a player's data went wrong" | `console.md`, then the Ledger skill's forensics, before any change |
-| "delete a player", "GDPR", "erasure" | `/docs/privacy/erasure-requests` |
+| "delete a player", "GDPR", "erasure" | `/docs/ers/ers-requests` |
 | "review this", "audit this game" | `review.md` |
 | you are about to claim something | `verify.md` |
 

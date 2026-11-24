@@ -2,7 +2,7 @@
 
 Craftsman is four packages, each at its own version. Control is always the CLI's version. `craftsman.lock` names the set, and CI installs exactly what it names. Ask before moving any of them: it changes what the game runs.
 
-Full steps are in `docs-bundle.md`, under `/docs/project-setup/update-packages` and `/docs/project-setup/upgrade-from-older-versions`.
+Full steps are in the docs, read with `read_doc`: `/docs/project-setup/update-packages` and `/docs/reference/reference-upgrading`.
 
 ## Move
 

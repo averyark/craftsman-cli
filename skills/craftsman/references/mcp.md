@@ -35,6 +35,10 @@ sharing switch (Settings → General) must be on.
 | `propose` | A batch of up to 50 requests: `{title, requests: [{operation, target, params, reason}]}` |
 | `proposals` | Each request's outcome: waiting, declined, withdrawn, applied, refused or failed |
 
+The same server reads the docs, with no sign-in: `search_docs`, `list_docs` and `read_doc`
+(from CLI 0.11.17). Add it to the client even when nobody has signed an agent in.
+`../docs/README.md` says how to use them.
+
 A target is a label from the evidence, a server id from `list_servers`, `*` for every
 server where the operation allows it, or nothing. Never raw digits: a UserId is refused.
 

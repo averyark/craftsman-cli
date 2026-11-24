@@ -2,25 +2,25 @@
 
 An agent cannot use the console: it asks for a passkey. Through `craftsman mcp` an agent can read the documents a person hands it and propose operations, which the person accepts here ([mcp](mcp.md)). Everything else on these pages, hand the person as steps. Pages are at `/dashboard/<project id>/<page>`, and the place group menu at the top decides which group a page acts on.
 
-Full steps are in `docs-bundle.md` under each path.
+Full steps are in the docs page under each path: read it with `read_doc`.
 
 ## Where things are
 
 | Page | What a person does there | Page in the bundle |
 |---|---|---|
-| **Overview** | Reads **Needs attention**, drawn only when something is wrong. Halts operations | `/docs/monitoring/read-the-overview` |
-| **Configuration** | Switches features, changes configs, uses the fallback | `/docs/features/change-a-config` |
-| **Players & Data** | Opens a player or a document, bans, runs operations, reverts, investigates | `/docs/players-and-data/find-a-player` |
-| **Servers** | Lists live servers. Needs `Registry = true` | `/docs/servers-and-commands/see-live-servers` |
-| **Commands** | Sends a command to one server or every server | `/docs/servers-and-commands/commands-page` |
-| **Purchases** | Reads unfulfilled purchases and refunds, assigns a gift | `/docs/store-and-purchases/look-up-purchases` |
-| **Privacy** | Handles erasure requests | `/docs/privacy/erasure-requests` |
-| **Releases** | Tests and deploys builds | `/docs/releases/deploy-a-release` |
-| **Store**, **Assets** | Read only mirrors of what the repository uploaded | `/docs/assets/assets` |
-| **Health** | Reads which key permissions are proven, and rate limits | `/docs/monitoring/check-health` |
-| **Audit** | Reads every change, by person, action and source | `/docs/monitoring/search-the-audit-log` |
-| **Approvals** | Approves, declines or cancels what is waiting, and accepts or declines an agent's proposals | `/docs/team-and-access/approve-a-request` |
-| **Settings** | Universes and keys, place groups, members, roles, release settings, signing, the webhook | `/docs/project-settings/add-a-universe` |
+| **Overview** | Reads **Needs attention**, drawn only when something is wrong. Halts operations | `/docs/overview/read-the-overview` |
+| **Configuration** | Switches features, changes configs, uses the fallback | `/docs/fms/fms-configs` |
+| **Players & Data** | Opens a player or a document, bans, runs operations, reverts, investigates | `/docs/dms/dms-documents` |
+| **Servers** | Lists live servers. Needs `Registry = true` | `/docs/lsr/lsr-registry` |
+| **Commands** | Sends a command to one server or every server | `/docs/ccs/ccs-server-commands` |
+| **Purchases** | Reads unfulfilled purchases and refunds, assigns a gift | `/docs/por/por-player-purchases` |
+| **Privacy** | Handles erasure requests | `/docs/ers/ers-requests` |
+| **Releases** | Tests and deploys builds | `/docs/rms/rms-deploys` |
+| **Store**, **Assets** | Read only mirrors of what the repository uploaded | `/docs/ams/ams-uploads` |
+| **Health** | Reads which key permissions are proven, and rate limits | `/docs/ocul/ocul-permissions` |
+| **Audit** | Reads every change, by person, action and source | `/docs/aal/aal-filters` |
+| **Approvals** | Approves, declines or cancels what is waiting, and accepts or declines an agent's proposals | `/docs/ccs/ccs-approvals` |
+| **Settings** | Universes and keys, place groups, members, roles, release settings, signing, the webhook | `/docs/project-setup/add-a-universe` |
 
 The sidebar shows a page only if the person may read it.
 
